@@ -1,0 +1,451 @@
+% -*- mode: noweb; noweb-default-code-mode: R-mode; -*-
+%\VignetteIndexEntry{rHVDM primer}
+%\VignetteKeywords{Time series, analysis}
+%\VignetteDepends{R2HTML, Biobase, minpack.lm}
+%\VignettePackage{rHVDM}
+%documentclass[12pt, a4paper]{article}
+\documentclass[12pt]{article}
+
+\usepackage{amsmath,pstricks}
+\usepackage{hyperref}
+\usepackage[authoryear,square]{natbib}
+
+\textwidth=6.2in
+\textheight=8.5in
+%\parskip=.3cm
+\oddsidemargin=.1in
+\evensidemargin=.1in
+\headheight=-.3in
+
+\newcommand{\scscst}{\scriptscriptstyle}
+\newcommand{\scst}{\scriptstyle}
+\newcommand{\Rfunction}[1]{{\texttt{#1}}}
+\newcommand{\Robject}[1]{{\texttt{#1}}}
+\newcommand{\Rpackage}[1]{{\textit{#1}}}
+
+
+
+\author{Martino Barenco}
+
+
+\begin{document}
+
+<<foo,include=FALSE,echo=FALSE>>=
+options(keep.source = TRUE, width = 60)
+foo <- packageDescription("rHVDM")
+@
+
+\title{Description of rHVDM: an R/Bioconductor package implementing Hidden Variable Dynamic Modelling}
+
+\maketitle
+
+\tableofcontents
+
+\subsection*{Background}
+
+The rHVDM package is an improved version of Hidden Variable Dynamic Modelling (HVDM)~\cite{HVDM}\footnote{\url{http://genomebiology.com/2006/7/3/R25}} implemented in R for speed and convenience. HVDM is a mathematical technique which analyses time course expression data using an underlying dynamical model. HVDM takes advantage of prior biological knowledge to create a training set of genes, the behaviour of which can be used to derive the activity profile of the controlling transcription factor. This activity parameter -the hidden variable- can then be used to identify other targets of the same factor ranked in order of likelihood.
+
+The new R implementation incorporates two significant improvements over the original C version. First, we have introduced a more efficient optimisation technique (Levenberg-Marquardt) which significantly improves on the Nelder-Mead method applied before. Second, the Hessian matrix created as a by-product of the new method can be used to assess the robustness of the outcome. This results in a faster performance compared to the original implementation where confidence intervals were estimated via a comparatively slow Markov Chain Monte Carlo approach. rHVDM can now analyse microarray time series data from a thousand genes in under 5 minutes to accurately predict targets of a transcription factor.
+
+
+\subsection*{Type of data required}
+
+\Rpackage{rHVDM} requires the following input information:
+\begin{itemize}
+\item{Expression time course microarray data, consisting of at least five time points. Note that the technique can cope with irregular sampling.}
+\item{Some prior biological knowledge about the transcription factor under review: at least three genes should be known to be targets of that transcription factor and presumed to be targets of that transcription factor \emph{only}.} These genes comprise the \emph{training set}.
+\item{The transcript degradation rate of one the known targets (measured in an independent experiment (for example by Q-RTPCR).}
+\item{The measurement error for each expression value should be known. Note that this is the technical error, not the biological error. See below for more details about this.}
+\end{itemize}
+These requirements are the bare minimum for \Rpackage{rHVDM} to produce meaningful results. More time points and replication improve results but are not essential. Little advantage is gained by increasing the number of training set genes beyond five. No advantage is gained by measuring more than one degradation rate. The data with which this technique was originally developed (and used in the example given below) consists of a time course run in triplicates comprising each seven time points, sampled regularly every two hours. We used more than three known targets (five). Surprisingly, biological replicates are not required but do help achieving more robust results.
+
+The experimental design should be such that the activity of the transcription factor under review changes in time. A flat activity (following a knock down of that transcription factor for example) would not carry much information. The time range covered by the time course should be loosely commensurate with the half lives of the transcripts of the target genes. In our example, the experiment covers twelve hours and the half life of a typical transcript is in the range of hours. Conversely, an experiment covering a week with a snapshot every twenty-four hours is unlikely to be informative.
+
+Crucially, something should be known about the measurement errors (\emph{ie} technical rather than biological error), in particular their variance. The idea behind this is that the fitting should be more lenient with those expression values that are more noisy and, more generally, that the uncertainty attached to the data should somehow ``trickle down" to the parameter estimation. Broadly speaking, the lower the expression level, the higher the associated error is. This is important in HVDM as the robustness of one of those parameters is critical in indicating whether a particular transcript is a putative target of the transcription factor under examination. Subsection ~\ref{sec:techdatareq} provides information on how these quantities can be computed in a principled way. We also give a ``quick and dirty" method to approximate the standard deviation of the measurement error, but one should be aware that this approximation is exactly that \emph{ie} dirty. The main problem is finding a technique that can reliably work for all types of arrays. In any case, some technical replication data should be available to estimate the measurement error.
+
+\section{HVDM uncovered}
+
+Before giving a sample session (in the next section), we briefly present in the present section the mathematical basis for the algorithm.
+
+\subsection{The model}
+
+The technique supposes that the expression of a given gene $j$ is governed 
+by the following ordinary differential expression:
+
+\begin{equation}
+\frac{dX_j(t)}{dt}=B_j+S_jf(t)-D_jX_j(t)
+\label{eq:model}
+\end{equation}
+where $X_j(t)$ denotes the concentration of gene $j$ at time $t$. The 
+left-hand side of this equation denotes the rate of change of that concentration while the
+right-hand side gathers all the terms having an influence on the rate of change. 
+The first term, $B_j$
+is a \emph{basal} rate of change. The second term $S_jf(t)$ is the rate of change that is dependent on the transcription factor. The constant is $S_j$ the sensitivity of gene $j$ to the transcription factor activity (and hence is specific to that gene), while $f(t)$ is the transcription factor activity at time $t$ and may apply to other genes, provided they are targets of the transcription factor. The last term is the degradation term, we suppose it is proportional to the transcript concentration. Hence, like $B_j$ and $S_j$, the degradation rate $D_j$ is a constant parameter. In a microarray time course experiment, we have measurements for $X_j(t)$, or rather we have approximate values $\hat{X}_j(t)$ because expression values are hampered by measurement errors:
+\begin{equation}
+\hat{X}_j(t_i)=X_j(t_i)+\epsilon_{j,i}
+\label{eq:measured}
+\end{equation}
+where $\epsilon_{j,i}$ is a random variable denoting the \emph{measurement error}. We suppose $\epsilon_{j,i}$ to be Gaussian with expectancy zero and variance $\sigma^2_{j,i}$. All the other quantities in equation \eqref{eq:model} remain unknown. We are in particular interested in $f(t)$, the transcription factor activity which is the ``hidden variable". To find the transcription factor activity, previous knowledge about the biological system under review is used, \emph{ie} known targets of the transcription factor and the degradation rate of the mRNA of one of those targets (the latter should be measured independently, using for example Q-RTPCR). Hence in an initial training step, optimal values for the kinetic parameters $B_j$, $S_j$, $D_j$ for the training genes and the activity profile $f(t)$ are found. In the second (screening) step, the model is fitted to other transcripts' expression data, with $f(t)$ known. Those genes transcripts for which the model fits the data well and whose sensitivity $S_j$ is significantly larger than zero are considered putative targets of the transcription factor under review.
+
+\subsection{More details about the fitting}
+
+The transcription factor activity variable $f(t)$ i in reality a continuous function. However, any time course experiment consists only of a limited amount of measurements at discrete time points, which we will denote henceforth as $\mathbf{\hat{X}_j}$, where \mbox{$\mathbf{\hat{X}_j}\equiv\{\hat{X}_j(t_0), \hat{X}_j(t_1), \dots, \hat{X}_j(t_n))\}$}. Hence, we aim to estimate $f(t)$ at the same time points: \mbox{$\mathbf{f}\equiv\{f(t_0), f(t_1), \dots, f(t_n))\}$}.
+
+Similarly to estimate the left-hand side of \eqref{eq:model}, the rate of change of the transcript concentration, we use a differential operator $A$, which is a square matrix with the same dimensions as there are time points in the time course. The entries of this matrix are calculated using polynomial interpolation. These entries depend only on the measurement times, not on the expression value. More details can be found in the supplementary material of \cite{HVDM}. Hence we have an approximate (and discrete) version of \eqref{eq:model}:
+
+\begin{equation}
+A\mathbf{X_j}=B_j\mathbf{1}+S_j\mathbf{f}-D_j\mathbf{X_j}
+\label{eq:matrix}
+\end{equation}
+whose formal solution\footnote{In practice, this system of linear equations is solved using LU substitution.} for $\mathbf{X_j}$ is given by
+\begin{equation*}
+\mathbf{X_j}=(A+D_j\mathbf{I})^{-1}(B_j\mathbf{1}+S_j\mathbf{f})
+\end{equation*}
+where $\mathbf{I}$ is the identity matrix and $\mathbf{1}$ a vector whose every single entry is $1$.
+
+Fitting the model amounts to finding the parameter values for which $\mathbf{X_j}$ (modelled expression values) are closest to $\mathbf{\hat{X}_j}$ (observed expression values). As a measure of ``closeness" we use the following expression, which we will call the \emph{model score}:
+\begin{equation}
+M(\mathbf{p})=\sum_{genes, time points, replicates}\left(\frac{\hat{X}_j(t_i)-X_j(t_i)}{\sigma_{j,i}}\right)^2
+\label{eq:modelscore}
+\end{equation}
+In the equation above, $\sigma_{j,i}$ is the standard deviation of the measurement error in \eqref{eq:measured} and $\mathbf{p}$ is the set of parameters to be fitted. The contents of this set depends on the context. In the training step, $\mathbf{p}$ comprises the kinetic parameters of the training genes as well as the transcription activity profile, while in the screening step, only the kinetic parameters of the gene under review are fitted. Fitting the model amounts to finding the values of $\mathbf{p}$ that minimize $M(\mathbf{p})$ above. It is worth noting, that in the case where there are several replicates in the experiment, a different transcription activity profile is used for each replicate, whilst the kinetic parameters for individual genes are supposed to be the same across replicates. 
+
+The fitting algorithm used in the R implementation of HVDM is Levenberg-Marquardt (LM), which is gradient-based and applied using the excellent \Rpackage{minpack.lm} package. A useful by-product of LM is the hessian matrix $H$. $H$ is an approximation of the partial second derivatives of the model score function \eqref{eq:modelscore} with respect to individual elements of $\mathbf{p}$, the vector of parameters. This matrix is instrumental in leading the optimisation but also has interesting properties when it comes to evaluating the robustness of the fit. Inverting $H$\footnote{If $H$ is non-singular, which is not guaranteed.} gives an approximation of the covariance matrix of the fitted parameters, which we use as a measure of robustness. For example, the diagonal of $H^{-1}$ contains the variance of the individual parameters. It is also possible to derive, from the Hessian matrix, useful information about the quality of the fit (see next section).
+
+\section{A sample session}
+\label{sec:samplesession}
+
+The \Rpackage{rHVDM} package comprises five functions, \Rfunction{HVDMcheck}, \Rfunction{HVDMreport}, \Rfunction{training}, \Rfunction{fitgene} and \Rfunction{screening}. The first two are \emph{diagnostic} commands and the last three perform various types of fitting. In this section we demonstrate these commands using the example presented in \cite{HVDM}. The relevant data for this sample session is attached with the package. \Rpackage{rHVDM} requires three other packages: \Rpackage{affy}\footnote{Normally, \Rpackage{Biobase} should be enough but we specify \Rpackage{affy} to ensure Windows compatibility.}~\cite{biocond} (for data handling), \Rpackage{R2HTML}~\cite{R2HTML} (for report generation) and \Rpackage{minpack.lm} (for the optimisation step). Once these packages and \Rpackage{rHVDM} have been installed, \Rpackage{rHVDM} can be launched in the R session using:
+<<loading>>=
+library(rHVDM) ##the three other packages also get loaded
+@
+To load the data that will be used in this sample session\footnote{Under Linux, before launching the \Rfunction{data} command one needs to load the datasets library using \Rfunction{library(datasets)}.}:
+<<loadingdata>>=
+data(HVDMexample)
+@
+This loads the three R objects: \Robject{fiveGyMAS5}, \Robject{p53traingenes} and \Robject{genestoscreen}. \Robject{fiveGyMAS5} contains the data set to be used, \Robject{p53traingenes} and \Robject{genestoscreen} are vectors containing gene identifiers. The data is of human T-cells (MOLT4 line) that were subjected to a 5 Gy dose of $\gamma$-irradiation. This causes DNA double-strand breaks which elicits a complex transcriptional response in the cell. Messenger RNA was collected every two hours and up to twelve hours after irradiation, as well as just before irradiation (which is the zero hours, or control, time point) and affymetrix HGU133A arrays were hybridized using standard procedures. Thus there are seven time points $\{0,2,4,6,8,10,12\}$ and the experiment was run in triplicates. Probe level data were summarized using MAS5.0 and rescaled~\cite{rescale}\footnote{\url{http://www.biomedcentral.com/1471-2105/7/251}}. It is these data that are contained in the \Robject{fiveGyMAS5} object. In this sample session, we will apply \Rpackage{rHVDM} to identify targets of the p53 tumor suppressor.
+
+\subsection{Data requirements}
+\label{sec:techdatareq}
+The time course data used should:
+\begin{itemize}
+\item{be contained in an \Robject{exprSet} object (\Rpackage{Biobase} package)}
+\item{The expression values should be summarized (\emph{ie}, probe level data will not work).}
+\item{The expression values should be in ``raw" form (\emph{ie} not log-transformed).}
+\end{itemize}
+In addition to expression values, estimates for the standard deviation of the measurement error \emph{have to be supplied} (in the \Robject{se.exprs} slot of the expression set). A ``quick and dirty" way to create some of those would be to use:
+<<quickanddirtymeaserrors>>=
+anothereset<-fiveGyMAS5
+anothereset@se.exprs<-abs(anothereset@exprs*0.1+5.0)
+@
+This supposes the noise to be 10 percent of the signal intensity, plus an additive component. Recall that this is a ``quick and dirty" method. We recommend using a procedure similar to the one we implemented originally~\cite{HVDM,err1,err2,err3}. We remove the spurious expression set:
+<<deletedirtyset>>=
+rm(anothereset)
+@
+as \Robject{fiveGyMAS5} contains everything we need. The pheno data of the expression set should contain specific fields. To access this phenodata, use the \Rpackage{Biobase} command:
+<<trypdatacommand>>=
+pData(fiveGyMAS5)
+@
+The pheno data should contain at least three fields: \Robject{replicate} (even if there is only one replicate), \Robject{time} and \Robject{experiment}. Of those three, only the \Robject{time} field has to contain numerical values (in the two other fields, entries can have a numeric or character format). In addition, there should be a zero time point per (experiment/replicate), there should be no duplicate time values per (experiment/replicate) and no negative time. The row names in the pheno data should be consistent with the column names of the expression matrix contained in the expression set. All these checks can be performed using the \Rpackage{rHVDM} command:
+<<HVDMcheckcommand>>=
+HVDMcheck(fiveGyMAS5)
+@
+This command returns only warnings and does not modify the object(s) under review. If changes are necessary this is the responsibility of the user. 
+
+The pheno data will determine what part of the data set will be used to perform the various HVDM steps. For example, one might want to exclude one of the replicates from the analysis, while keeping intact the pheno data that sits inside the \Rpackage{Biobase} expression set. The relevant \Rpackage{rHVDM} commands will thus accept ``external" pheno data. Checking this "external"  pheno data is recommended and can also be done using \Rfunction{HVDMcheck}. For example, we can exclude the third replicate from the pheno data 
+<<createnewpdata>>=
+norepl3<-pData(fiveGyMAS5)
+norepl3<-norepl3[norepl3$replicate!=3,]
+@
+and then check the pheno data is correct:
+<<checknewpdata>>=
+HVDMcheck(fiveGyMAS5,pdata=norepl3)
+@
+Note than an \Robject{eset} has to be supplied to \Rfunction{HVDMcheck} in any case. As usual, command vignettes are accessible using the question mark:
+\begin{Sinput}
+> ?HVDMcheck
+\end{Sinput}
+Before carrying on, let us get rid of what will not be needed:
+<<garbagecollection>>=
+rm(norepl3)
+@
+\subsection{The training step}
+In the example data set, we are interested in the transcription factor p53. Before screening genes for p53 dependency, we need to uncover the ``hidden" activity profile of p53. This is performed through the \Rpackage{rHVDM} \Rfunction{training} function. A list of known transcription factor targets has to be supplied to the function. In the p53 example, known targets are given in the \Robject{p53traingenes} vector, where individual entries are the corresponding gene identifiers. In addition it is very strongly recommended to supply, via the \Robject{degrate} argument, an independently measured degradation rate (the importance of this will be illustrated below). Note that \emph{this degradation rate must apply to the first gene in the training set}. So if the degradation rate applies to another gene in the training set, the vector supplied to the \Robject{genes} argument should be re-ordered accordingly:
+<<training>>=
+tHVDMp53<-training(eset=fiveGyMAS5,genes=p53traingenes,
+				degrate=0.8,actname="p53")
+@
+The \Robject{actname} argument is not compulsory but will help make the reports clearer to read. It is also possible to fit the model using only a subset of the replicates and/or time points. This should be done by supplying an appropriately formatted data frame to the \Rfunction{training} command via the \Robject{pdata} argument.
+
+To examine the \Robject{tHVDMp53} object that has been generated by the \Rfunction{training} function use:
+\begin{Sinput}
+> HVDMreport(tHVDMp53)
+\end{Sinput}
+This command creates an HTML-formatted report and places it \emph{in the working directory} so if one wants the report to be placed in a specific directory, this needs to be changed in the R environment before running the \Rfunction{HVDMreport} command. By default, \Rfunction{HVDMreport} generates a default name for the report, a user-specified name can be assigned using the \Robject{name} argument, for example
+\begin{Sinput}
+> HVDMreport(tHVDMp53, name="myreport")
+\end{Sinput}
+will generate a document named \Robject{myreport.HTML} in the current working directory.
+Documents generated by \Rfunction{HVDMreport} can be opened and read using standard web browsers. The report for the training step comprises four sections
+\begin{enumerate}
+
+\item{\textbf{Training parameters.} 
+
+This part of the report lists all the parameters that were supplied to the \Rfunction{training} function (list of training genes, expression set used, etc.).}
+
+\item{\textbf{Model score.}
+
+The first graph in the panel compares the model score to the \emph{chi-squared} distribution with an appropriate number of degrees of freedom (\emph{degrees of freedom = data count - parameter count}). The model score is signalled with red crosses. If they are too much to the right of the distribution, the model score is too high which means that the data is not well fitted: one of the genes is probably not a target, or is coregulated by another transcription factor; it is also possible that the standard deviation for the measurement errors have been underestimated. Alternatively, the crosses can be too much to the left which signify overfitting, in which case, the standard deviations supplied are probably too high. The case under review shows a desirable outcome. Below, we will give an example where the outcome is not so good.
+
+The right panel shows a quantile-quantile plot of the standardised deviations between the model and the data with respect to a standard Gaussian distribution. Points should be aligned with the diagonal (as they are in the demonstrating analysis).}
+
+The series of three plots below show the contributions of individual genes and individual time course (normalised by the number of time points in the third plot). This is to help identify where problems may have occurred, for example if a gene contributes disproportionately to the total model score the corresponding vertical bar will be higher than the others. The last series of plots shows the contribution of individual time points within time courses. 
+
+\item{\textbf{Parameter fit.} 
+
+The first three figures in this section show a graph of the fitted kinetic parameters, along with a $95\%$ confidence interval. Note that if the hessian matrix is singular, then these confidence intervals cannot be determined, and it is better to assume the worst case scenario, \emph{ie} that they are very large. The second series of graphs shows the transcription factor activity. Note that the first time point (at zero hours) is not fitted and set by default to zero. This means that we are in fact measuring the \emph{deviation from equilibrium} of the transcription factor activity. 
+
+The Hessian matrix is both instrumental in the optimising procedure and useful in computing confidence intervals. The next figure in the fit shows the distribution of the eigenvalues of the Hessian matrix. This is useful in evaluating the quality of the fit. If there is a dominant eigenvalue (which is not the case here), then this tells us something about the quality of the fit. Below we will show an example of such an instance. 
+
+Finally, The inverse of the Hessian matrix is an approximation of the covariance matrix of the parameters (which is why one can estimate individual confidence intervals) and from the covariance matrix, the correlation matrix can be computed. The correlation matrix is in the last part of the section. In some situations it might be useful to know whether the parameters that are being fitted are dependent upon one another. For example a high basal rate of one particular gene might be compensated by a higher sensitivity rate without affecting the quality of the fit (ie the model score). Such an instance can be seen in the last section of the table, for the gene \Robject{209295\_at}.}
+
+\item{\textbf{Comparison of model and data.}
+
+The last part of the report provides a visual comparison between the model (in red) and the data (black). This further allows assessment of the quality of the fit and single out rogue genes and/or replicates. The errors bars indicate the $95\%$ confidence interval for the measurement error, as provided by the user.}
+\end{enumerate}
+The report document contains hyperlinks to facilitate navigation. Note that it is possible to extract more information from the object that has been generated by the \Rfunction{training} function, this is explained in the third section of the present document. We will now present two different training steps where things go slightly wrong to learn how to read these reports. First, we will try to run the training step without anchoring the model. This is done simply by leaving the optional \Robject{degrate} argument empty:
+<<trainigunanchored>>=
+tHVDMp53na<-training(eset=fiveGyMAS5,genes=p53traingenes,actname="p53")
+@
+\begin{Sinput}
+> HVDMreport(tHVDMp53na)
+\end{Sinput}
+Contrasting this report with the previously generated one shows that anchoring the fitting can be quite beneficial to the quality of the fit. There is not much difference in terms of model score (second section of the report), the non-anchored version is even slightly better, the model score is lower. Equally, the fourth section shows that the data is well fitted by the model. The real difference can be seen in the third section (parameter fit). One can readily see that the confidence intervals are really large both for the kinetic parameters and, especially, the activity profiles. One can also notice that there is a single dominant eigenvalue which indicates that the Hessian is badly conditioned and hence, close to singularity. In this particular case the non-anchored solution is not too far off the anchored one but this is purely coincidental. In any case, confidence intervals that are too large should be avoided.
+
+We now try a final training step, where things go decidedly wrong. Here, we introduce a rogue gene in the training set that is not a p53 target. The affy identifier \Robject{202688\_at} corresponds to the tumor necrosis factor member 10 (TNF10), but it is a ligand. The real p53 target is the TNF10 \emph{receptor} (and is already part of the training set)\footnote{Note that because in this case things are problematic, the algorithm takes a long time to find an optimum.}.
+<<trainingbadgene>>=
+tHVDMp53b<-training(eset=fiveGyMAS5,genes=c(p53traingenes,"202688_at"),
+				degrate=0.8,actname="p53")
+@
+\begin{Sinput}
+> HVDMreport(tHVDMp53b)
+\end{Sinput}
+Problems can can be spotted in many places in this instance. Firstly, the model score is way too high (section 2). Secondly, the parameter values of the newly introduced gene are absurd (section 3). The hessian is singular (section 3). The model visibly struggles to fit the data for this particular gene (last panel of section 4). The fact that it is this particular gene that causes problems can also be seen in the second panel of section 2 of the report: this gene contributes to the total model score in a disproportionate manner.
+
+Before moving on the the next section we can delete unwanted results of some training steps we performed above (\emph{ie} we keep only the \Robject{tHVDMp53} object).
+
+<<garbagecollectionagain>>=
+rm(tHVDMp53na,tHVDMp53b)
+@
+
+\subsection{Fitting individual genes and screening in batches}
+
+Now that the training step has been performed, we have all the ingredients to start screening the rest of the transcripts. The activity profiles we have computed in the previous section are contained in the \Robject{tHVDMp53}. To try individual genes, the \Rfunction{fitgene} function can be used.
+<<agoodgene>>=
+gHVDMCD38<-fitgene(eset=fiveGyMAS5,gene="205692_s_at",tHVDM=tHVDMp53)
+@
+The minimal input to the \Rfunction{fitgene} function are, as above, the expression set(\Robject{eset}), the gene name (\Rfunction{gene}) and the output of the \Rfunction{training} function (\Rfunction{tHVDM}). Other possible inputs to the function are a first guess for the parameters. This \Robject{firstguess} argument should be either a vector with values for the basal rate, the sensitivity and the degradation rate (in that order), alternatively one can give as input to that argument the output to a previous \Rfunction{fitgene} step (it does not even to be the same gene):
+<<thesamegene>>=
+gHVDMCD38<-fitgene(eset=fiveGyMAS5,gene="205692_s_at",tHVDM=tHVDMp53,
+				firstguess=gHVDMCD38)
+@
+However, the default setting consists of leaving the \Robject{firstguess} argument empty. In that case a first guess is generated internally and, in our experience, this seems to work fine. For example, the second \Rfunction{fitgene} step above is superfluous. To examine the outcome of this individual gene fitting step, the \Rfunction{HVDMreport} can again be used.
+\begin{Sinput}
+> HVDMreport(gHVDMCD38)
+\end{Sinput}
+The sections of the HTML report are essentially the same as for the training step. Where possible, comparisons with genes part of the training step are included. The gene under review (CD38/205692\_s\_at) is very likely to be a p53 target because the model score is fairly low and the sensitivity Z-score is high. It is worth noting that this is a previously unknown p53 target and its dependency status was confirmed using an independent experiment~\cite{HVDM}). We can try to fit another (non-p53 target) gene, we pick TNF10l, which we encountered previously:
+<<badgene>>=
+RgHVDMtnf10l<-fitgene(eset=fiveGyMAS5,gene="202688_at",tHVDM=tHVDMp53)
+@
+\begin{Sinput}
+> HVDMreport(gHVDMtnf10l)
+\end{Sinput}
+We already know that this particular gene is not a p53 target and this shows in the report: the model score is very high, the sensitivity Z-score cannot even be computed because the Hessian is singular (in this case, a default value of -1 is given) and finally, absurd values for the kinetic parameters are returned.
+
+It is also possible to screen in the same fashion a batch of genes using the \Rfunction{screening} function (to screen all the genes in the list remove the square brackets).
+<<screenall>>=
+sHVDMp53<-screening(eset=fiveGyMAS5,genes=genestoscreen[1:5],HVDM=tHVDMp53)
+@
+The inputs for this function are more or less the same as for the individual gene fitting command, except that a first guess option is not available. The \Robject{genes} argument accepts vectors of gene identifiers. The \Robject{genestoscreen} instance is a list of $\approx{750}$ genes we pre-selected that are significantly upregulated and/or present at at least one point in time in the context of this experiment. It is worth to avoid scanning the whole genome. Although fitting an individual gene can be done in a few seconds, those seconds add up if 20k genes are screened! The above example should take approximately five minutes on a standard personal computer (as of December, 2006). 
+
+Other arguments to the \Rfunction{screening} function are the various thresholds beyond which individual genes will be considered to be targets of the transcription factor under review. The \Robject{cl1zscorelow} argument is the bound above which a given sensitivity Z-score will classify a gene as a putative transcription factor target. Likewise, the \Robject{cl1modelscorehigh} is the bound for the model score. To be considered a target, the transcript must have a model score \emph{below} that bound. Finally, the \Robject{cl1degraterange} is the range (given as two entries vector) within which the fitted degradation rate must find itself. To be considered a target, a given gene must satisfy all three conditions. Default values are respectively (2.5,100.0,c(0.01,5.0)). A list of putative p53 targets (collated in a data frame) can, in our example, be obtained via the command
+<<targetlist>>=
+p53targets<-sHVDMp53$results[sHVDMp53$results$class1,]
+@
+The field \Robject{class1} in the data frame flags (TRUE/FALSE) the dependency status of each individual gene. The thresholds values can be changed by running the screening command again with revised bounds. Imagine for example that we want to be more restrictive both on the model score and sensitivity Z-score criteria. This can be done by plugging in the new bounds and in place of the training object, supplying the previously obtained screening object:
+<<newscreen>>=
+sHVDMp53<-screening(HVDM=sHVDMp53,cl1modelscorehigh=80.0,
+			cl1zscorelow=3.5)
+@
+The new list can be obtained as above. Note that in this new "run" the \Robject{eset} and \Robject{genes} arguments can be omitted as the original screening object contains all the necessary information. In other words, actual fitting of each gene is not performed once again. The list of genes that are obtained after any screening step are, by default, ordered by descending sensitivity Z-score. We found that,  using an independent experiment~\cite{HVDM}, the sensitivity Z-score is a better predictor of transcription factor dependency, genes at the top the list are the most likely to be actual targets. Finally, the infamous \Rfunction{HVDMreport} function can also be applied to the output of the \Rfunction{screening} function. 
+\begin{Sinput}
+> HVDMreport(sHVDMp53)
+\end{Sinput}
+The HTML file the function produces provides a wealth of information about the parameters of the original training (section 1) and screening (section 2) steps. In addition, a count of the genes passing the various thresholds is produced (in section 3). A list of putative targets is given in the final, and fourth, section of the HTML document.
+
+\section{Accessing information in rHVDM objects}
+
+Objects generated by the \Rfunction{training}, \Rfunction{screening} and \Rfunction{fitgene} functions are not objects in the strict R sense but mere \Robject{lists} which themselves contain other \Robject{lists}, \Robject{vectors}, \Robject{data.frames} and \Robject{character} classes. In this section we describe in some detail the content of these objects in order for the end user to be able to access it and for example to create their own charts etc.. When creating numeric R objects it is always possible to label individual entries (in the case of a matrix, individual entries can be accessed by their row and column labels). This possibility is fully exploited in \Rpackage{rHVDM} and the labels are designed to be as explicit as possible, which should hopefully make data retrieving relatively transparent.
+
+\subsection{List created by the \Robject{training()} function.}
+\label{sec:training}
+
+In R, names of list members can be accessed using the \Rfunction{names} function. Using this function with one of the lists created in the previous section with the \Rfunction{training} function reveal that this lists comprises ten objects: \Robject{tc, dm, par, pdata, distribute, results, scores, itgenes, eset, type}. Accessing these members individually can be done as usual using the  R operator \Robject{\$}, \emph{ie} \Rfunction{name\_of\_list\$name\_of\_member}. 
+
+\subsubsection*{The \Robject{dm} member.}
+
+This member is itself a list and it contains the data, the model fit for the data and the standard deviation of the measurement error. Each of these three are stored in flat vectors named respectively \Robject{signal}, \Robject{estimate} and \Robject{sdev} and stored as members or \Robject{dm}. Each individual entry in these vectors is labelled by a character string comprising the gene name, the name of the experiment, the name of the replicate and the time point, in that order and separated by single dots. Going back to the example of the previous section,
+<<extractavalue>>=
+tHVDMp53$dm$signal[paste("202284_s_at","5Gy","2",6,sep=".")]
+@
+will return the measured expression at 6 hours for gene \Robject{202284\_s\_at}  in replicate \Robject{2} of the \Robject{5Gy} time course.
+
+\subsubsection*{The \Robject{par} and \Robject{distribute} members.}
+
+The \Robject{par} member is itself a list containing, among others, the values of the parameters of the model. These comprise the three kinetic parameters for each gene and the values of the transcription factor activity for each time point in each time course and replicate. These values are stored in the \Robject{parameters} member of \Robject{par}. The values are labelled using dot separated labels. For example,
+<<extractanactivitytimepoint>>=
+tHVDMp53$par$parameters[paste("p53","5Gy","2",6,sep=".")]
+@
+accesses the value for the activity of the transcription factor in the 6 hours data point of replicate \Robject{2} of the \Robject{5Gy} time course. Similarly, individual kinetic parameters can be accessed by specifying the gene identifier (\Robject{203409\_at}), followed by the kinetic parameter identifier (\Robject{Dj})
+<<extractaparameter>>=
+tHVDMp53$par$parameters[paste("203409_at","Dj",sep=".")]
+@
+Basal, sensitivity and degradation parameters are denoted with \Robject{Bj, Sj, Dj}. Some of these parameters are fixed (initial time points of the transcription factor activity profile are set to zero, and one or two parameters for the anchoring gene). A vector containing the values of these fixed parameters can be obtained using
+<<knownvalues>>=
+tHVDMp53$distribute$known
+@
+Conversely, the vector of free parameters \emph{labels} is in the \Robject{free} of the \Robject{distribute} member, therefore 
+<<freeparams>>=
+tHVDMp53$par$parameters[tHVDMp53$distribute$free]
+@
+returns the (labelled) values of these free parameters. Other components of the \Robject{par} and \Robject{distribute} members are of less direct interest here. These extra components in \Robject{distribute} act as an interface between the \Robject{training} list and the Levenberg-Marquardt optimiser, while the extra parameters in \Robject{par} specify the type of model to be used (we plan to expand \Rpackage{rHVDM} for it to accommodate non-linearities in the response and multiple transcription factor dependencies).
+
+\subsubsection*{The \Robject{scores} member.}
+
+The total model score of equation~\eqref{eq:modelscore} can be broken down by gene, time course etc. These various score ventilations are collated in the \Robject{scores} member. The vector \Robject{s2} is the atomised version (it contains the breakdown for each possible (gene/ time point/ experiment/ replicate). The labelling of this vector is exactly the same as the one used in the \Robject{dm} member. The scalar \Robject{total} contains the total model score. Between these two extremes, \Robject{bygenes} is the distribution by gene, \Robject{bytc} by time course (a time course is an experiment/replicate pair). \Robject{bytcpertp} is also the distribution by time course, but divided by the number of points in the time course. Within time course score distributions per time point are also provided. Since the number of time courses is not predictable, the space to store these results is allocated dynamically in the \Robject{withintc} list. Each (numbered) member of this list is itself a list that contains the time course label (in the \Robject{name} slot) and the the score breakdown per time point (in \Robject{score} slot). For example,
+<<scoreobject>>=
+tHVDMp53$scores$withintc[[1]]$score
+@
+returns one of these within time course breakdowns.
+
+\subsubsection*{The \Robject{results} member.}
+
+This member contains the output of the optimisation step. The \Robject{hessian} slot is the hessian at the optimum.
+
+\subsubsection*{Less interesting member (\Robject{tc}).}
+
+This list member contains technical information used for solving the model equation, in particular the differential operator $A$ mentioned in~\eqref{eq:matrix}. This information has to be determined for each time course independently and is dynamically stored in \Robject{tc}, which is an indexed R list. Each of these slots is itself a list containing the name of the experiment (\Robject{experiment}), replicate (\Robject{replicate}) the time values (\Robject{time}), the appropriate column labels to access the data (\Robject{explabel}) and the differential operator (\Robject{A}). To view the latter for the first time course, type
+<<differentialoperator>>=
+tHVDMp53$tc[[1]]$A
+@
+
+\subsubsection*{Least interesting members (\Robject{pdata, eset, type, itgenes}).}
+
+The remaining list members contain bookkeeping information. The \Robject{pdata} member is simply a \Robject{data.frame} objet that is a copy of the pheno data that being used by the \Rfunction{training} function and is either the pheno data of the expression set or, the alternative pheno data fed to that function by the user. The \Robject{eset} member is the name of the Biobase expression set and \Robject{type} indicates what kind of object we are dealing with. At the end of each training set, a "mini-screening" is performed with each member of the training set for subsequent comparison purposes. The results of this screening are contained in the \Robject{itgenes} member (a \Robject{data.frame}), whose formatting is similar to the one produced by the \Rfunction{screening} command (see subsection \ref{sec:screeningss}). 
+
+\subsection{List created by the \Robject{fitgene()} function.}
+
+\label{sec:fitgeness}
+
+The object generated by the \Rfunction{fitgene} function are structured exactly in the same manner as the ones generated by the \Rfunction{training} and therefore contains the same members (refer to the previous section, the member \Robject{tset} is a copy of the \Robject{tset} member of the training object) plus a few extra ones. These are:
+\begin{itemize}
+\item{\Robject{fguess}: the first guess generated inside the function or, alternatively, the one supplied by the user.}
+\item{\Robject{tHVDMname}: the name of the object generated by the \Rfunction{training} used in the \Rfunction{fitgene} function.}
+\end{itemize}
+\subsection{List created by the \Robject{screening()} function.}
+
+The list created by the \Rfunction{screening} function comprises five members: \Robject{results, tHVDM, transforms, class1bounds, type}. The last four contain essentially parameters that were input to the function:
+\begin{itemize}
+\item{\Robject{tHVDM}: is a straight copy of the \Robject{training} object (see subsection \ref{sec:training}).}
+\item{\Robject{transforms}: indicates what kind of transformation, if any, was applied to the some kinetic parameters, it is a vector whose character entries indicate the transformed kinetic parameter. The function used for the transform is indicated in the labels.}
+\item{\Robject{class1bounds} is a list collating the bounds governing whether individual genes are classified as putative targets of the transcription factor of interest or not. The member \Robject{zscore} is a lower bound for the sensitivity Z-score. If a gene's sensitivity Z-score is below this value, it will not be considered a target. The \Robject{modelscore} is also a scalar, but it is an \emph{upper} bound. Genes with a model score \emph{above} this value will not be considered targets. Finally, the \Robject{degrate} member of \Robject{class1bounds} is vector containing the lower and upper bounds for the degradation rate.}
+\end{itemize}
+The most important member of this list, however is the \Robject{results} member. It is a \Robject{data.frame} object in which each record collates the essential results of the screening for each individual gene. This data frame comprises 14 columns:
+\begin{itemize}
+\item{\Robject{model\_score}: The model score for the gene.}
+\item{\Robject{sens\_z\_score}: The Z-score for the sensitivity.}
+\item{\Robject{basal}: The basal transcription rate for the gene}
+\item{\Robject{sensitivity}: The sensitivity to the transcription factor activity.}
+\item{\Robject{degradation}: The degradation rate for the gene.}
+\item{\Robject{basal\_d, basal\_u}: Respectively the lower and upper value for the $9\%$ confidence interval of the basal rate.}
+\item{\Robject{sensitivity\_d, sensitivity\_u}: Same as above, for the sensitivity.}
+\item{\Robject{degradation\_d, degradation\_u}: Same as above, for the degradation.}
+\item{\Robject{class1}: A boolean (True/False) specifying wether the gene belongs to the list of putative targets.}
+\item{\Robject{hess\_rank}: The rank of the hessian matrix. If this is lower than $3$, then the system is singular and the corresponding gene is not a putative target (the confidence intervals and Z-scores cannot be computed in this case).}
+\item{\Robject{lm\_message}: Message returned by the optimising procedure.}
+\end{itemize}
+\label{sec:screeningss}
+
+\section{Technical issues}
+\subsection{How confidence intervals are evaluated}
+
+As has been mentioFned previously in this document, the Hessian at the optimal point, as found by the Levenberg-Marquardt procedure(LM), is used to compute confidence intervals. This sounds straightforward but some peculiarities in our fitting algorithm make matters slightly more complicated. When fitting the model, we advocate\footnote{It is, however, possible to relax this, see vignettes of the \Rfunction{training}, \Rfunction{screening} and \Rfunction{fitgene} functions.} forcing some parameters in the positive domain. This is done by feeding the LM procedure with parameters that are "free to roam" everywhere in the parameter space (including negative portions of it). Before evaluating the model, however the exponential of these "free" values is taken, forcing them to be positive. Another way of putting this is that the values used in LM are log-transforms of the actual parameters values. Before looking at this case, we examine the more straightforward situation where there is no forcing. We assume that the hessian (\Robject{H}) has full rank and the vector of free parameters is denoted by \Robject{v} (the way to extract these two objects is explained in section \ref{sec:training}). The confidence interval bounds could then be obtained using
+\begin{Sinput}
+> Vcov<-solve(H)	#the variance-covariance matrix is obtained 
+			#by inverting the hessian
+> halfint<-1.96*diag(Vcov)^0.5 #Taking the square root of the diagonal
+				#of that matrix gives the standard 
+				#deviation, multiplying by 1.96 gives 
+				#the 95% half confidence interval.
+> upperbound<-v+halfint #upper bound for c.i.
+> lowerbound<-v-halfint #lower bound for c.i.
+\end{Sinput}
+In the case mentioned above, the hessian is valid for (log-)transformed values (for some parameters) and, consequently the confidence intervals are first computed in this domain and then lifted in the non-transformed domain we are interested in. This is achieved by running the following set of commands (we take as an example the training outcome shown in the sample session in section \ref{sec:samplesession}):
+<<confidenceintervalsfortraining>>=
+vcov<-solve(tHVDMp53$results$hessian)
+sdev<-1.96*diag(vcov)^0.5 #compute half confidence interval in 
+			#transformed domain
+work<-tHVDMp53 #create a copy of the example to work with
+central<-.exportfree(work) #extract transformed, fitted values
+nams<-names(central) #extract vector of labels
+upperbounds<-
+  (.importfree(HVDM=work,x=central[nams]+sdev[nams]))$par$parameters
+  
+  #.importfree() imports the transformed values for the upper bound
+  #into the "work" object and performs the inverse transform (here, an 
+  #exponential) upon import, a new HVDM object is returned by this 
+  #command. The $par$parameters suffix extracts the parameter vector. 
+  #Note that the upperbounds vector will contain all parameter values, 
+  #ie not only those fitted in LM.
+  
+lowerbounds<-
+  (.importfree(HVDM=work,x=central[nams]-sdev[nams]))$par$parameters
+  
+  #a similar command is used to extract the lower bounds.
+  
+rm(work) #get rid of this no longer needed object
+@
+Note that this set of command will also work if no transform was used during the fit.
+
+
+
+\section{Implementation notes and other practicalities}
+
+\subsection{MacOSX 10.4}
+
+\begin{itemize}
+
+\item{To run properly, the \Rfunction{HVDMreport} should have an X11 device. To do that in the R session, select \emph{run X11 server} from menu \emph{Misc}. 
+}
+\item{\Rpackage{rHVDM} requires \Rpackage{minpack.lm} which in turn requires a FORTRAN compiler. Instructions can be found here: \url{http://cran.r-project.org/bin/macosx/RMacOSX-FAQ.html#Fortran-compiler-_0028g77-3_002e3-or-later_0029}. For this particular context, there does not need to be a match between the C and FORTRAN compiler, as only the latter is used. Alternatively, binaries for the \Rpackage{minpack.lm} and \Rpackage{R2HTML} packages can be found on the CRAN website \url{http://cran.r-project.org/}. The Bioconductor packages and clear instructions on how to install them can be found on the Bioconductor website \url{http://www.bioconductor.org/docs/install-howto.html}.}
+\end{itemize}
+\subsection{Windows}
+
+\begin{itemize}
+\item{Apparently, PERL is required. We recommend ActivePerl \url{www.activestate.com/Products/ActivePerl}.  Note that cygwin perl cannot be used.}
+\item{Rtools is required (\url{www.murdoch-sutherland.com/Rtools/tools.zip}).  You need to make sure that all these tools are in the path (see \url{http://www.computerhope.com/issues/ch000549.htm} on how to do this).}
+\item{Windows binaries for two of the required packages (\Rpackage{minpack.lm} and \Rpackage{R2HTML}) can be found on the CRAN website \url{http://cran.r-project.org/}. The Bioconductor packages and clear instructions on how to install them can be found on the Bioconductor website \url{http://www.bioconductor.org/docs/install-howto.html}.}
+\end{itemize}
+
+
+
+\bibliographystyle{unsrt}
+\bibliography{rHVDM}
+
+\end{document}
+
+
+
+
+
+
