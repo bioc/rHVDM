@@ -26,7 +26,7 @@ HVDMcheck<-function(eset,pdata){
 	
 	#check the names of pData can be found in the column names of expresssion
 	expnamestest<-TRUE
-	colnames<-dimnames(eset@exprs)[[2]]
+	colnames<-dimnames(exprs(eset))[[2]]
 	pdatanames<-rownames(pdata)
 	message("*** checking that pdata and expression set coincide:")
 	for (rn in pdatanames){
@@ -39,7 +39,7 @@ HVDMcheck<-function(eset,pdata){
 	else message("   one or more of the data points in the pdata could not be found in the expression set")
 	#checking dynamic range
 	message("*** checking dynamic range of expression values:")
-	rng<-range(eset@exprs)
+	rng<-range(exprs(eset))
 	rngOK<-TRUE
 	if(rng[2]-rng[1]<20){
 		message("   D) your data seems to be log-transformed, make sure that is it not")
@@ -48,11 +48,12 @@ HVDMcheck<-function(eset,pdata){
 	else message("					OK")
 	#checking the standard deviation
 	sdOK<-TRUE
-	sd<-eset@se.exprs
+	sd<-assayData(eset)$se.exprs
 	nas<-sum(is.na(sd))
-	message("*** checking standard deviation in [eset]@se.exprs:")
+	message("HAVE TO CHANGE THE MESSAGE WITH THE CORRECT ACCESSION MODIFICATION LABELS")
+	message("*** checking standard deviation in assayData([eset])$se.exprs:")
 	if (nas>0){
-		message("   E) some standard deviation are NA in [eset]@se.exprs")
+		message("   E) some standard deviation are NA in assayData([eset])$se.exprs")
 		sdOK<-FALSE
 	}
 	else{
@@ -65,8 +66,8 @@ HVDMcheck<-function(eset,pdata){
 	if(sdOK) message("					OK")
 	else{ 
 		message("      There seems to be a problem with the standard deviation")
-		message("      of the measurement errors you have given in eset@se.exprs.")
-		message("      Try (for example) [eset]@se.exprs<-[eset]@exprs*0.1+5.0")
+		message("      of the measurement errors you have given in assayData([eset])$se.exprs.")
+		message("      Read the package vignette (section 2.1)")
 	}
 	everythingOK<-nopdwarnings*timevecsOK*expnamestest*rngOK*sdOK
 	message("  ")

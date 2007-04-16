@@ -89,7 +89,7 @@ where $\epsilon_{j,i}$ is a random variable denoting the \emph{measurement error
 
 \subsection{More details about the fitting}
 
-The transcription factor activity variable $f(t)$ i in reality a continuous function. However, any time course experiment consists only of a limited amount of measurements at discrete time points, which we will denote henceforth as $\mathbf{\hat{X}_j}$, where \mbox{$\mathbf{\hat{X}_j}\equiv\{\hat{X}_j(t_0), \hat{X}_j(t_1), \dots, \hat{X}_j(t_n))\}$}. Hence, we aim to estimate $f(t)$ at the same time points: \mbox{$\mathbf{f}\equiv\{f(t_0), f(t_1), \dots, f(t_n))\}$}.
+The transcription factor activity variable $f(t)$ is in reality a continuous function. However, any time course experiment consists only of a limited amount of measurements at discrete time points, which we will denote henceforth as $\mathbf{\hat{X}_j}$, where \mbox{$\mathbf{\hat{X}_j}\equiv\{\hat{X}_j(t_0), \hat{X}_j(t_1), \dots, \hat{X}_j(t_n))\}$}. Hence, we aim to estimate $f(t)$ at the same time points: \mbox{$\mathbf{f}\equiv\{f(t_0), f(t_1), \dots, f(t_n))\}$}.
 
 Similarly to estimate the left-hand side of \eqref{eq:model}, the rate of change of the transcript concentration, we use a differential operator $A$, which is a square matrix with the same dimensions as there are time points in the time course. The entries of this matrix are calculated using polynomial interpolation. These entries depend only on the measurement times, not on the expression value. More details can be found in the supplementary material of \cite{HVDM}. Hence we have an approximate (and discrete) version of \eqref{eq:model}:
 
@@ -129,14 +129,16 @@ This loads the three R objects: \Robject{fiveGyMAS5}, \Robject{p53traingenes} an
 \label{sec:techdatareq}
 The time course data used should:
 \begin{itemize}
-\item{be contained in an \Robject{exprSet} object (\Rpackage{Biobase} package)}
+\item{be contained in an \Robject{ExpressionSet} object (\Rpackage{Biobase} package)}. From version 1.1 onwards, \Rpackage{rHVDM} won't accept \Robject{exprSet} objects. To convert the old structure into the new use the \Rfunction{as} command:
+\begin{Sinput}
+><ExpressionSet-object> <- as(<exprSet-object>,"ExpressionSet")
+\end{Sinput}
 \item{The expression values should be summarized (\emph{ie}, probe level data will not work).}
 \item{The expression values should be in ``raw" form (\emph{ie} not log-transformed).}
 \end{itemize}
-In addition to expression values, estimates for the standard deviation of the measurement error \emph{have to be supplied} (in the \Robject{se.exprs} slot of the expression set). A ``quick and dirty" way to create some of those would be to use:
+In addition to expression values, estimates for the standard deviation of the measurement error \emph{have to be supplied} (in the \Robject{se.exprs} slot of the expression set). A ``quick and dirty" way to create some of those would be the following command (It creates a new ExpressionSet "on the fly"):
 <<quickanddirtymeaserrors>>=
-anothereset<-fiveGyMAS5
-anothereset@se.exprs<-abs(anothereset@exprs*0.1+5.0)
+anothereset<-assayDataElementReplace(fiveGyMAS5,'se.exprs',5 + exprs(fiveGyMAS5)*0.1)
 @
 This supposes the noise to be 10 percent of the signal intensity, plus an additive component. Recall that this is a ``quick and dirty" method. We recommend using a procedure similar to the one we implemented originally~\cite{HVDM,err1,err2,err3}. We remove the spurious expression set:
 <<deletedirtyset>>=
@@ -152,7 +154,7 @@ HVDMcheck(fiveGyMAS5)
 @
 This command returns only warnings and does not modify the object(s) under review. If changes are necessary this is the responsibility of the user. 
 
-The pheno data will determine what part of the data set will be used to perform the various HVDM steps. For example, one might want to exclude one of the replicates from the analysis, while keeping intact the pheno data that sits inside the \Rpackage{Biobase} expression set. The relevant \Rpackage{rHVDM} commands will thus accept ``external" pheno data. Checking this "external"  pheno data is recommended and can also be done using \Rfunction{HVDMcheck}. For example, we can exclude the third replicate from the pheno data 
+The pheno data will determine what part of the data set will be used to perform the various HVDM steps. For example, one might want to exclude one of the replicates from the analysis, while keeping intact the pheno data that sits inside the \Rpackage{Biobase} expression set. The relevant \Rpackage{rHVDM} commands will thus accept ``external" pheno data. Checking this ``external"  pheno data is recommended and can also be done using \Rfunction{HVDMcheck}. For example, we can exclude the third replicate from the pheno data 
 <<createnewpdata>>=
 norepl3<-pData(fiveGyMAS5)
 norepl3<-norepl3[norepl3$replicate!=3,]
@@ -195,7 +197,7 @@ This part of the report lists all the parameters that were supplied to the \Rfun
 
 \item{\textbf{Model score.}
 
-The first graph in the panel compares the model score to the \emph{chi-squared} distribution with an appropriate number of degrees of freedom (\emph{degrees of freedom = data count - parameter count}). The model score is signalled with red crosses. If they are too much to the right of the distribution, the model score is too high which means that the data is not well fitted: one of the genes is probably not a target, or is coregulated by another transcription factor; it is also possible that the standard deviation for the measurement errors have been underestimated. Alternatively, the crosses can be too much to the left which signify overfitting, in which case, the standard deviations supplied are probably too high. The case under review shows a desirable outcome. Below, we will give an example where the outcome is not so good.
+The first graph in the panel compares the model score to the \emph{chi-squared} distribution with an appropriate number of degrees of freedom (\emph{degrees of freedom = data count - parameter count}). The model score is signalled with red crosses. If they are too much to the right of the distribution, the model score is too high which means that the data is not well fitted: one or more of the genes is probably not a target, or is coregulated by another transcription factor; it is also possible that the standard deviation for the measurement errors have been underestimated. Alternatively, the crosses can be too much to the left which signify overfitting, in which case, the standard deviations supplied are probably too high. The case under review shows a desirable outcome. Below, we will give an example where the outcome is not so good.
 
 The right panel shows a quantile-quantile plot of the standardised deviations between the model and the data with respect to a standard Gaussian distribution. Points should be aligned with the diagonal (as they are in the demonstrating analysis).}
 
@@ -379,7 +381,7 @@ The most important member of this list, however is the \Robject{results} member.
 \section{Technical issues}
 \subsection{How confidence intervals are evaluated}
 
-As has been mentioFned previously in this document, the Hessian at the optimal point, as found by the Levenberg-Marquardt procedure(LM), is used to compute confidence intervals. This sounds straightforward but some peculiarities in our fitting algorithm make matters slightly more complicated. When fitting the model, we advocate\footnote{It is, however, possible to relax this, see vignettes of the \Rfunction{training}, \Rfunction{screening} and \Rfunction{fitgene} functions.} forcing some parameters in the positive domain. This is done by feeding the LM procedure with parameters that are "free to roam" everywhere in the parameter space (including negative portions of it). Before evaluating the model, however the exponential of these "free" values is taken, forcing them to be positive. Another way of putting this is that the values used in LM are log-transforms of the actual parameters values. Before looking at this case, we examine the more straightforward situation where there is no forcing. We assume that the hessian (\Robject{H}) has full rank and the vector of free parameters is denoted by \Robject{v} (the way to extract these two objects is explained in section \ref{sec:training}). The confidence interval bounds could then be obtained using
+As has been mentioned previously in this document, the Hessian at the optimal point, as found by the Levenberg-Marquardt procedure(LM), is used to compute confidence intervals. This sounds straightforward but some peculiarities in our fitting algorithm make matters slightly more complicated. When fitting the model, we advocate\footnote{It is, however, possible to relax this, see vignettes of the \Rfunction{training}, \Rfunction{screening} and \Rfunction{fitgene} functions.} forcing some parameters in the positive domain. This is done by feeding the LM procedure with parameters that are "free to roam" everywhere in the parameter space (including negative portions of it). Before evaluating the model, however the exponential of these "free" values is taken, forcing them to be positive. Another way of putting this is that the values used in LM are log-transforms of the actual parameters values. Before looking at this case, we examine the more straightforward situation where there is no forcing. We assume that the hessian (\Robject{H}) has full rank and the vector of free parameters is denoted by \Robject{v} (the way to extract these two objects is explained in section \ref{sec:training}). The confidence interval bounds could then be obtained using
 \begin{Sinput}
 > Vcov<-solve(H)	#the variance-covariance matrix is obtained 
 			#by inverting the hessian
@@ -432,10 +434,27 @@ Note that this set of command will also work if no transform was used during the
 \subsection{Windows}
 
 \begin{itemize}
-\item{Apparently, PERL is required. We recommend ActivePerl \url{www.activestate.com/Products/ActivePerl}.  Note that cygwin perl cannot be used.}
-\item{Rtools is required (\url{www.murdoch-sutherland.com/Rtools/tools.zip}).  You need to make sure that all these tools are in the path (see \url{http://www.computerhope.com/issues/ch000549.htm} on how to do this).}
+\item{To install \Rpackage{rHVDM}, we recommend using the binaries available on the bioconductor website.}
 \item{Windows binaries for two of the required packages (\Rpackage{minpack.lm} and \Rpackage{R2HTML}) can be found on the CRAN website \url{http://cran.r-project.org/}. The Bioconductor packages and clear instructions on how to install them can be found on the Bioconductor website \url{http://www.bioconductor.org/docs/install-howto.html}.}
 \end{itemize}
+
+\section{What's new in version...}
+\paragraph{version 1.1}
+\begin{itemize}
+\item{Updated the package so that it only accepts the new \Robject{ExpressionSet}. The old \Robject{exprsSet} is deprecated (as in the rest of the Bioconductor project).}
+\item{Vignettes and the present textual description are modified accordingly, with some indications on how to transform the old input objects into new ones.}
+\item{Corrected some typos in the present document.}
+\end{itemize}
+
+\paragraph{Future updates}
+\begin{itemize}
+\item{On-line generation of diagnostic graphs (to complement off-line HTML report generation).}
+\item{Computation of measurement error (for selected plattforms).}
+\item{Nonlinearities in the production function (mainly saturation but also threshold effects).}
+\item{Repression}
+\item{Multiple transcription factors dependencies.}
+\end{itemize}
+
 
 
 

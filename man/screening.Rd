@@ -12,7 +12,7 @@ screening(eset,genes,HVDM,transforms,cl1zscorelow,cl1modelscorehigh,cl1degratera
 }
 
 \arguments{
-  \item{eset}{ an exprSet object (Biobase) }
+  \item{eset}{ an ExpressionSet object (Biobase) }
   \item{genes}{ a vector containing the genes identifiers to be screened (in character format) }
   \item{transforms}{ a vector containing the kintetic parameter identifiers that have to be transformed during optimisation (optional) }
   \item{HVDM}{ a HVDM object (see details) }

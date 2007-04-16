@@ -11,9 +11,9 @@ fitgene(eset,gene,tHVDM,transforms,firstguess)
 }
 
 \arguments{
-  \item{eset}{ an exprSet object (Biobase) }
+  \item{eset}{ an ExpressionSet object (Biobase) }
   \item{gene}{ the gene identifier in character format }
-  \item{transforms}{ a vector containing the kintetic parameter identifiers that have to be transformed during optimisation (optional) }
+  \item{transforms}{ a vector containing the kinetic parameter identifiers that have to be transformed during optimisation (optional) }
   \item{tHVDM}{ the output of the training set }
   \item{firstguess}{ first guess for the fitting (optional, see details)}
 }

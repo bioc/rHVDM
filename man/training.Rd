@@ -11,7 +11,7 @@
 training(eset,genes,transforms,degrate,actname,pdata,forcetransforms)
 }
 \arguments{
-  \item{eset}{ an exprSet object (Biobase) }
+  \item{eset}{ an ExpressionSet object (Biobase) }
   \item{genes}{ a vector containg the gene identifiers of the training genes }
   \item{transforms}{ a vector containing the kintetic parameter identifiers that have to be transformed during optimisation (optional) }
   \item{degrate}{ value of the anchoring gene degradation rate, expressed in inverse unit time (optional) }

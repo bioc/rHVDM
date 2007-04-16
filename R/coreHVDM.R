@@ -241,10 +241,10 @@
 			dfname<-paste(gene,timecourses[[i]]$experiment,timecourses[[i]]$replicate,sep=".")
 			dfnames<-append(dfnames,dfname)
 			colabels<-timecourses[[i]]$explabel
-			toadd<-Eset@exprs[gene,colabels]
+			toadd<-exprs(Eset)[gene,colabels]
 			names(toadd)<-paste(dfname,timecourses[[i]]$time,sep=".")
 			datavec<-append(datavec,toadd)
-			toadd<-Eset@se.exprs[gene,colabels]
+			toadd<-assayData(Eset)$se.exprs[gene,colabels]
 			names(toadd)<-paste(dfname,timecourses[[i]]$time,sep=".")
 			sevec<-append(sevec,toadd)
 		}
