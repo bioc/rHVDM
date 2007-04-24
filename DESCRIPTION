@@ -1,7 +1,7 @@
 Package: rHVDM
 Type: Package
 Title: Hidden Variable Dynamic Modeling
-Version: 1.2.0
+Version: 1.3.0
 Date: 2007-04-13
 Author: Martino Barenco
 Maintainer: Martino Barenco<m.barenco@ucl.ac.uk>
