@@ -1,4 +1,4 @@
-#functions for individual gene in linear situation (ie linear model) [tbc]
+#functions for individual genes in linear situation (ie linear model) [tbc]
 #these functions will have to be rewritten completely for other situations
 
 .screenall<-function(eset,genes,tHVDM,transforms=c("exp"="Dj","exp"="Bj")){
