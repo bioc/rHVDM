@@ -18,7 +18,7 @@ HVDMcheck(eset,pdata)
 }
 \details{ The checks performed are: A) the phenoData has all the required fields. B) the time field is numeric, has
   a zero time point, does not have negative or repeated values. C) the row names in the phenoData 
-  are consistent with the columns names found in the exprSet. D) the data is not log-transformed.
+  are consistent with the columns names found in the ExpressionSet. D) the data are not log-transformed.
   E) Standard deviations have been supplied in the ExpressionSet, and they are non-negative.
 }
 
