@@ -1,146 +1,95 @@
 #set of hidden functions used to compute the measurement error in an eset
 
-.returnsigma<-function(x,tabl){
-#looks up value log(x) in a table and return interpolated value
-#the table should have two colums where the first is log transformed of the signal
-#and the second the square of the variance of the measurement error
-#the function returns the standard devation
-	if(x<=0){
-		lx<-(-15)
+.computeinderrtable<-function(X,errtable,refchips){
+	#method as described in GB paper
+	#prepare the receptacle
+	N<-dim(X)[2]
+	if(missing(refchips)){
+		refchips<-c(1:N)
 	}
-	else{
-		lx<-log(x)
+	m<-dim(errtable)[1]
+	res<-matrix(rep(0,m*N),m,N)
+	dimnames(res)[[2]]<-dimnames(X)[[2]]
+	#compute average
+	coeffmul<-rep(1./N,N)
+	aver<-as.vector(X %*% coeffmul)
+	difsq<-(X-aver)^2
+	#determine bounds for classification
+	bnds<-c(-20,errtable[,1])
+	for(i in c(1:(m-1))){
+		bnds[i+1]<-errtable[i,1]/2+errtable[i+1,1]/2
 	}
-	n<-dim(tabl)[1]
-	if(lx<tabl[1,1]){
-		res<-tabl[1,2]^0.5
+	bnds[m+1]<-log(max(aver)+1)
+	if(refchips==0){
+		wei<-rep(0,m)
 	}
-	else{
-		if(lx>=tabl[n,1]){
-			rel<-tabl[n,2]^0.5/exp(tabl[n,1])
-			res<-rel*x
-		}
-		else{#do the normal search with interpolation and all that
-			lowbnd<-1
-			upebnd<-n
-			while(upebnd-lowbnd>1){
-				tesbnd<-(upebnd+lowbnd)/2
-				if(lx<tabl[tesbnd,1]){
-					upebnd<-tesbnd
-				}
-				else{
-					lowbnd<-tesbnd
-				}
-			}
-			#the difference between upper and lower bound is now one, so have to interpolate a value
-			totrendj<-tabl[upebnd,1]-tabl[lowbnd,1]
-			parrendj<-lx-tabl[lowbnd,1]
-			p<-parrendj/totrendj
-			res<-((1-p)*tabl[lowbnd,2]+p*tabl[upebnd,2])^0.5
-			res
+	for(i in c(1:m)){
+		keep<-((log(aver)>bnds[i]) & (log(aver)<=bnds[i+1]))
+		ngenes<-sum(keep*1)
+		coe<-rep(1./ngenes,ngenes)
+		res[i,]<-as.vector(t(difsq[keep,]) %*% coe)
+		if(refchips==0){
+			wei[i]<-ngenes
 		}
 	}
+	if(refchips==0){
+		refchips<-.retlessnoisy(X=res,weight=wei,N=3)
+		print(refchips)
+	}
+	#compute average for reference group
+	nref<-length(refchips)
+	coe<-rep(1./nref,nref)
+	avrefchi<-res[,refchips] %*% coe
+	ratio<-as.vector(errtable[,2]/avrefchi)
+	res<-cbind(errtable[,1],res*ratio)
+	dimnames(res)[[2]][1]<-"avg"
+	res
 }
 
-.returnmulfac<-function(x,tabl){
-#looks up value log(x) in a table and return interpolated value
-#the table should have two colums where the first is log transformed of the signal
-#and the second the square of the variance of the measurement error
-#the function returns the standard devation
-	if(x<=0){
-		lx<-(-15)
-	}
-	else{
-		lx<-log(x)
-	}
-	n<-dim(tabl)[1]
-	if(lx<tabl[1,1]){
-		res<-tabl[1,2]
-	}
-	else{
-		if(lx>=tabl[n,1]){
-			rel<-tabl[n,2]
-			res<-rel
-		}
-		else{#do the normal search with interpolation and all that
-			lowbnd<-1
-			upebnd<-n
-			while(upebnd-lowbnd>1){
-				tesbnd<-(upebnd+lowbnd)/2
-				if(lx<tabl[tesbnd,1]){
-					upebnd<-tesbnd
-				}
-				else{
-					lowbnd<-tesbnd
-				}
-			}
-			#the difference between upper and lower bound is now one, so have to interpolate a value
-			totrendj<-tabl[upebnd,1]-tabl[lowbnd,1]
-			parrendj<-lx-tabl[lowbnd,1]
-			p<-parrendj/totrendj
-			res<-((1-p)*tabl[lowbnd,2]+p*tabl[upebnd,2])
-			res
-		}
-	}
-}
-
-
-.calculatecorrectionfactors<-function(X,errbnd,refs){
-	bnds<-c(-20,errbnd)
-	n<-length(errbnd)
-	for(i in c(1:(n-1))){
-		bnds[i+1]<-errbnd[i]/2+errbnd[i+1]/2
-	}
-	bnds[n+1]<-log(max(X)+1)
-	#compute average per observation
-	dims<-dim(X)
-	mulavg<-rep(1/dims[2],dims[2])
-	avre<-as.vector(X %*% mulavg)
-	deviates<-matrix(rep(0,dims[2]*n),n,dims[2])
-	avgates<-0*c(1:n)
-	Xmju2<-((X-avre)^2)^0.5
-	for(i in c(1:n)){
-		sel<-((log(avre)>bnds[i]) & (log(avre)<=bnds[i+1]))
-		sub<-t(Xmju2[sel,])
-		dimz<-dim(sub)
-		ultz<-rep(1/dimz[2],dimz[2])
-		deviates[i,]<-as.vector(sub %*% ultz)
-		avgates[i]<-sum(avre[sel]*ultz)
-	}
-	print(avgates)
-	print(deviates)
-	deviates<-cbind(avgates,deviates)
-	rnams<-paste("r",c(1:n))
-	dimnames(deviates)<-list(rnams,c("clcenterz",dimnames(X)[[2]]))
-	#finally, normalise to array references
-	refarr<-deviates[,refs]
-	dims<-dim(refarr)
-	mulref<-rep(1/dims[2],dims[2])
-	normaliz<-as.vector(refarr %*% mulref)
-	res<-deviates/normaliz
-	res[,1]<-log(avgates)
+.retlessnoisy<-function(X,weight,N){
+	dimz<-dim(X)
+	cweff<-rep(1./dimz[2],dimz[2])
+	avgs<-as.vector(X %*% cweff)
+	X<-X/avgs
+	resis<-as.vector((t(X) %*% weight)/sum(weight))
+	names(resis)<-dimnames(X)[[2]]
+	resis<-sort(resis)
+	res<-names(resis[c(1:N)])
 	print(res)
 	res
 }
 
 .computerrs<-function(eset,errtable,refs){
-	message("hi there")
+	#vectorized version
 	sanitycheck<-TRUE  #overidden for now, maybe eventulally check that the overall signal corresponds to the
 					   #data that was used for calibrating the plattform
 	if(sanitycheck){
 		X<-exprs(eset)
-		mftab<-.calculatecorrectionfactors(X=X,errbnd=errtable[,1], refs=refs)
-		sig<-X
-		dnams<-dimnames(X)
-		for(aarray in dnams[[2]]){
-			for(gene in dnams[[1]]){
-				res<-.returnsigma(X[gene,aarray],errtable)
-				multfac<-.returnmulfac(X[gene,aarray],mftab[,c("clcenterz",aarray)])
-				#message(paste(aarray,gene,X[gene,aarray],res,multfac))
-				sig[gene,aarray]<-res*multfac
-			}
-			message(paste(aarray,"done"))
+		sigtab<-.computeinderrtable(X=X,errtable=errtable, refchips=refs)
+		sig<-X*0
+		N<-dim(X)[1]
+		M<-dim(X)[2]
+		dimz<-dim(sigtab)
+		#sift through error classes
+		nclass<-dimz[1]
+		message("pre-computations done")
+		#do first class first (asolute error constant accross the class)
+		mask<-(X<=exp(sigtab[1,1]))*1
+		absolu<-(sigtab[1,1+c(1:M)]^0.5)
+		sig<-sig+t(t(mask)*absolu)
+		message("first class done")
+		#loop through the intermediate classes
+		for(i in c(1:(nclass-1))){
+			mask<-( (X>exp(sigtab[i,1])) & (X<=exp(sigtab[i+1,1])) )*1.
+			Ps<-(log(X+1e-10)-sigtab[i,1])/(sigtab[i+1,1]-sigtab[i,1])
+			sig <- sig + ((t(t(Ps)*sigtab[i+1,1+c(1:M)]+t(1.-Ps)*sigtab[i,1+c(1:M)]))*mask)^0.5
+			message(paste("class",i+1,"/",nclass+1,"done"))
 		}
+		#do highest class (relative error is constant)
+		mask<-(X>exp(sigtab[nclass,1]))*1
+		rel<-(sigtab[nclass,1+c(1:M)]^0.5)/exp(sigtab[nclass,1])
+		sig<-sig+t(t(mask)*rel)*X
+		message("highest class done")
 		res<-assayDataElementReplace(eset,"se.exprs",sig)
 	}
 	else{
@@ -149,6 +98,7 @@
 	}
 	res
 }
+
 
 #stucture of .plattform list:
 #indexed list under each index, there is a list whose constituents are in text format unless specified
