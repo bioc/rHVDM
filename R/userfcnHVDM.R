@@ -82,3 +82,54 @@ HVDMcheck<-function(eset,pdata){
 		 if (!sdOK) message("   E) the standard deviation that is given in [eset]@se.exprs")
 	} 
 }
+
+estimerrors<-function(eset,plattid,refchips,errtable){
+#this function takes an eset as input and returns 
+#a completed eset (with standard deviation of measurement error estimates) in one of the slots
+	if(missing(eset)){#if the expression set is not given as an input the function just returns the list of supportd plattorms
+		res<-.returnsupportedplattforms()
+		res
+	}
+	else{
+		if(class(eset)=="ExpressionSet"){#sanity check
+			if(missing(errtable)){
+				if(missing(plattid)){#a plattform identity has not been given 
+					foundplattid<-.plattformmatch(eset=eset)
+					if(foundplattid=="notfound"){#the search using genes ids did not yield anything
+						message("could not find a suitable plattform, measurement error not estimated")
+						res<-eset
+						res
+					}
+					else{
+						errtable<-rHVDMplattforms[[foundplattid]]$errtable
+						res<-.computerrs(eset=eset,errtable=errtable,refs=refchips)
+					}
+				}
+				else{#a plattform id has been entered by the user
+					foundplattid<-.returnplattidnumber(plattid=plattid)
+					if(foundplattid=="notfound"){#plattform identity not found
+						message(paste("the plattform",plattid,"is not supported by rHVDM"))
+						message("list of plattform supported by rHVDM:")
+						res<-.returnsupportedplattforms()
+						print(res)
+						res<-eset
+						res
+					}
+					else{#all is well
+						errtable<-rHVDMplattforms[[foundplattid]]$errtable
+						res<-.computerrs(eset=eset,errtable=errtable,refs=refchips)
+						res
+					}
+				}
+			}
+			else{#an error table has been input by the user and this overrides the rest
+				res<-.computerrs(eset=eset,errtable=errtable,refs=refchips)
+			}
+		}
+		else{
+			message("the object input as eset is not an ExpressionSet")
+			res<-eset
+			res
+		}
+	}
+}
