@@ -39,30 +39,32 @@ foo <- packageDescription("rHVDM")
 
 \maketitle
 
+Warning: as of today the current version of minpack.lm (1.1-0) is bugged until further notice, we (the rHVDM maintainers) have no bearing on that and we recommend using an earlier version of minpack.lm (1.0-5). We also reverted the current version of rHVDM to the previous one (1.4.0) to be on the safe side, so that the pre-built versions found on the bioconductor repository will work fine.
+
+
 \tableofcontents
 
 \subsection*{Background}
 
-The rHVDM package is an improved version of Hidden Variable Dynamic Modelling (HVDM)~\cite{HVDM}\footnote{\url{http://genomebiology.com/2006/7/3/R25}} implemented in R for speed and convenience. HVDM is a mathematical technique which predicts a given transcription factor activity and then uses this information to predict its targets. To achieve that, HVDM uses time course expression data inconjunction with a dynamic model. HVDM takes advantage of prior biological knowledge to create a training set of genes, the behaviour of which can be used to derive the activity profile of the controlling transcription factor. This activity parameter -the hidden variable- can then be used to identify other targets of the same factor ranked in order of likelihood.
+The rHVDM package is an improved version of Hidden Variable Dynamic Modelling (HVDM)~\cite{HVDM}\footnote{\url{http://genomebiology.com/2006/7/3/R25}} implemented in R for speed and convenience. HVDM is a mathematical technique which analyses time course expression data using an underlying dynamical model. HVDM takes advantage of prior biological knowledge to create a training set of genes, the behaviour of which can be used to derive the activity profile of the controlling transcription factor. This activity parameter -the hidden variable- can then be used to identify other targets of the same factor ranked in order of likelihood.
 
 The new R implementation incorporates two significant improvements over the original C version. First, we have introduced a more efficient optimisation technique (Levenberg-Marquardt) which significantly improves on the Nelder-Mead method applied before. Second, the Hessian matrix created as a by-product of the new method can be used to assess the robustness of the outcome. This results in a faster performance compared to the original implementation where confidence intervals were estimated via a comparatively slow Markov Chain Monte Carlo approach. rHVDM can now analyse microarray time series data from a thousand genes in under 5 minutes to accurately predict targets of a transcription factor.
 
-The most important section of the present document is section~\ref{sec:samplesession}, which contains a step-by-step sample session; the data for this session are supplied with the package. Going through this session should take about an hour and we strongly recommend doing this before trying \Rpackage{rHVDM} with your own data. That section is preceded by the data requirements description and a short introduction on the mathematical principles behind the package. It is followed by more technical aspects of \Rpackage{rHVDM} (Accessing information in \Rpackage{rHVDM} objects, confidence intervals computation, implementation changes).
 
 \subsection*{Type of data required}
 
 \Rpackage{rHVDM} requires the following input information:
 \begin{itemize}
 \item{Expression time course microarray data, consisting of at least five time points. Note that the technique can cope with irregular sampling.}
-\item{Some prior biological knowledge about the transcription factor under review: at least three genes should be known to be targets of that transcription factor and presumed to be targets of that transcription factor \emph{only}.} These genes constitute the \emph{training set}.
+\item{Some prior biological knowledge about the transcription factor under review: at least three genes should be known to be targets of that transcription factor and presumed to be targets of that transcription factor \emph{only}.} These genes comprise the \emph{training set}.
 \item{The transcript degradation rate of one the known targets (measured in an independent experiment (for example by Q-RTPCR).}
-\item{The measurement error for each expression value should be known. Note that this is the technical error, not the biological error. See below and section~\ref{sec:techdatareq} for more details about this.}
+\item{The measurement error for each expression value should be known. Note that this is the technical error, not the biological error. See below for more details about this.}
 \end{itemize}
 These requirements are the bare minimum for \Rpackage{rHVDM} to produce meaningful results. More time points and replication improve results but are not essential. Little advantage is gained by increasing the number of training set genes beyond five. No advantage is gained by measuring more than one degradation rate. The data with which this technique was originally developed (and used in the example given below) consists of a time course run in triplicates comprising each seven time points, sampled regularly every two hours. We used more than three known targets (five). Surprisingly, biological replicates are not required but do help achieving more robust results.
 
 The experimental design should be such that the activity of the transcription factor under review changes in time. A flat activity (following a knock down of that transcription factor for example) would not carry much information. The time range covered by the time course should be loosely commensurate with the half lives of the transcripts of the target genes. In our example, the experiment covers twelve hours and the half life of a typical transcript is in the range of hours. Conversely, an experiment covering a week with a snapshot every twenty-four hours is unlikely to be informative.
 
-Crucially, something should be known about the measurement errors (\emph{ie} technical rather than biological error), in particular their variance. The idea behind this is that the fitting should be more lenient with those expression values that are more noisy and, more generally, that the uncertainty attached to the data should somehow ``trickle down" to the parameter estimation. Broadly speaking, the lower the expression level, the higher the associated error is. This is important in HVDM as the robustness of one of those parameters is critical in indicating whether a particular transcript is a putative target of the transcription factor under examination. Starting from version 1.5 of the package, this measurement error can be estimated from the data (see subsection ~\ref{sec:techdatareq} for more details).
+Crucially, something should be known about the measurement errors (\emph{ie} technical rather than biological error), in particular their variance. The idea behind this is that the fitting should be more lenient with those expression values that are more noisy and, more generally, that the uncertainty attached to the data should somehow ``trickle down" to the parameter estimation. Broadly speaking, the lower the expression level, the higher the associated error is. This is important in HVDM as the robustness of one of those parameters is critical in indicating whether a particular transcript is a putative target of the transcription factor under examination. Subsection ~\ref{sec:techdatareq} provides information on how these quantities can be computed in a principled way. We also give a ``quick and dirty" method to approximate the standard deviation of the measurement error, but one should be aware that this approximation is exactly that \emph{ie} dirty. The main problem is finding a technique that can reliably work for all types of arrays. In any case, some technical replication data should be available to estimate the measurement error.
 
 \section{HVDM uncovered}
 
@@ -92,7 +94,7 @@ where $\epsilon_{j,i}$ is a random variable denoting the \emph{measurement error
 
 The transcription factor activity variable $f(t)$ is in reality a continuous function. However, any time course experiment consists only of a limited amount of measurements at discrete time points, which we will denote henceforth as $\mathbf{\hat{X}_j}$, where \mbox{$\mathbf{\hat{X}_j}\equiv\{\hat{X}_j(t_0), \hat{X}_j(t_1), \dots, \hat{X}_j(t_n))\}$}. Hence, we aim to estimate $f(t)$ at the same time points: \mbox{$\mathbf{f}\equiv\{f(t_0), f(t_1), \dots, f(t_n))\}$}.
 
-Similarly to estimate the left-hand side of \eqref{eq:model}, the rate of change of the transcript concentration, we use a differential operator $A$, which is a square matrix with the same dimensions as there are time points in the time course. The entries of this matrix are calculated using polynomial interpolation. These entries depend only on the timing of the measurement, not on the expression value. More details can be found in the supplementary material of \cite{HVDM}. Hence we have an approximate (and discrete) version of \eqref{eq:model}:
+Similarly to estimate the left-hand side of \eqref{eq:model}, the rate of change of the transcript concentration, we use a differential operator $A$, which is a square matrix with the same dimensions as there are time points in the time course. The entries of this matrix are calculated using polynomial interpolation. These entries depend only on the measurement times, not on the expression value. More details can be found in the supplementary material of \cite{HVDM}. Hence we have an approximate (and discrete) version of \eqref{eq:model}:
 
 \begin{equation}
 A\mathbf{X_j}=B_j\mathbf{1}+S_j\mathbf{f}-D_j\mathbf{X_j}
@@ -141,20 +143,11 @@ In addition to expression values, estimates for the standard deviation of the me
 <<quickanddirtymeaserrors>>=
 anothereset<-assayDataElementReplace(fiveGyMAS5,'se.exprs',5 + exprs(fiveGyMAS5)*0.1)
 @
-This supposes the noise to be 10 percent of the signal intensity, plus an additive component. Recall that this is a ``quick and dirty" method. 
-
-From version 1.5 onwards, rHVDM implements, with some minor modifications, the method described in the Genome Biology paper~\cite{HVDM,err1,err2,err3}. The first command loads plattform specific data
-<<calculateerrors>>=
-data(plattforms)
-anothereset<-estimerrors(eset=fiveGyMAS5,plattid="affy_HGU133A")
-@
-The \Robject{plattid} parameter gives the plattform. To check what plattforms are available, type the \Robject{estimerrors} command with no arguments.
-
-Before carrying on with this session, we remove the spurious expression set:
+This supposes the noise to be 10 percent of the signal intensity, plus an additive component. Recall that this is a ``quick and dirty" method. We recommend using a procedure similar to the one we implemented originally~\cite{HVDM,err1,err2,err3}. We remove the spurious expression set:
 <<deletedirtyset>>=
 rm(anothereset)
 @
-as \Robject{fiveGyMAS5} contains everything we need already. The pheno data of the expression set should contain specific fields. To access this phenodata, use the \Rpackage{Biobase} command:
+as \Robject{fiveGyMAS5} contains everything we need. The pheno data of the expression set should contain specific fields. To access this phenodata, use the \Rpackage{Biobase} command:
 <<trypdatacommand>>=
 pData(fiveGyMAS5)
 @
@@ -182,12 +175,12 @@ Before carrying on, let us get rid of what will not be needed:
 rm(norepl3)
 @
 \subsection{The training step}
-In the example data set, we are interested in the transcription factor p53. Before screening genes for p53 dependency, we need to uncover the ``hidden" activity profile of p53. This is performed through the \Rpackage{rHVDM} \Rfunction{training} function. A list of known transcription factor targets has to be supplied to the function. In the p53 example, known targets are given in the \Robject{p53traingenes} vector, where individual entries are the corresponding gene identifiers.
+In the example data set, we are interested in the transcription factor p53. Before screening genes for p53 dependency, we need to uncover the ``hidden" activity profile of p53. This is performed through the \Rpackage{rHVDM} \Rfunction{training} function. A list of known transcription factor targets has to be supplied to the function. In the p53 example, known targets are given in the \Robject{p53traingenes} vector, where individual entries are the corresponding gene identifiers. In addition it is very strongly recommended to supply, via the \Robject{degrate} argument, an independently measured degradation rate (the importance of this will be illustrated below). Note that \emph{this degradation rate must apply to the first gene in the training set}. So if the degradation rate applies to another gene in the training set, the vector supplied to the \Robject{genes} argument should be re-ordered accordingly:
 <<training>>=
 tHVDMp53<-training(eset=fiveGyMAS5,genes=p53traingenes,
 				degrate=0.8,actname="p53")
 @
-It is very strongly recommended to supply, via the \Robject{degrate} argument, an independently measured degradation rate (the importance of this will be illustrated below). Note that \emph{this degradation rate must apply to the first gene in the training set}. So if the degradation rate applies to another gene in the training set, the vector supplied to the \Robject{genes} argument should be re-ordered accordingly. The \Robject{actname} argument is not compulsory but will help make the reports clearer to read. It is also possible to fit the model using only a subset of the replicates and/or time points. This should be done by supplying an appropriately formatted data frame to the \Rfunction{training} command via the \Robject{pdata} argument.
+The \Robject{actname} argument is not compulsory but will help make the reports clearer to read. It is also possible to fit the model using only a subset of the replicates and/or time points. This should be done by supplying an appropriately formatted data frame to the \Rfunction{training} command via the \Robject{pdata} argument.
 
 To examine the \Robject{tHVDMp53} object that has been generated by the \Rfunction{training} function use:
 \begin{Sinput}
@@ -456,25 +449,13 @@ Note that this set of command will also work if no transform was used during the
 \item{Corrected some typos in the present document.}
 \end{itemize}
 
-\paragraph{version 1.2-1.4}
-\begin{itemize}
-\item{version 1.2 was the release version of 1.1.}
-\item{vesion 1.3 and 1.4 are identical to 1.2 (the numbers were bumped automatically because of a Bioconductor update.}
-\end{itemize}
-
-\paragraph{version 1.5}
-\begin{itemize}
-\item{Computation of the measurement error for selected plattforms.}
-\item{Update of the present document and vignettes.}
-\end{itemize}
-
 \paragraph{Future updates}
 \begin{itemize}
 \item{On-line generation of diagnostic graphs (to complement off-line HTML report generation).}
+\item{Computation of measurement error (for selected plattforms).}
 \item{Nonlinearities in the production function (mainly saturation but also threshold effects).}
 \item{Repression}
 \item{Multiple transcription factors dependencies.}
-\item{Extension of the measurement error computation to more plattforms.}
 \end{itemize}
 
 
