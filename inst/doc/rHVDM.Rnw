@@ -228,7 +228,7 @@ tHVDMp53na<-training(eset=fiveGyMAS5,genes=p53traingenes,actname="p53")
 Contrasting this report with the previously generated one shows that anchoring the fitting can be quite beneficial to the quality of the fit. There is not much difference in terms of model score (second section of the report), the non-anchored version is even slightly better, the model score is lower. Equally, the fourth section shows that the data is well fitted by the model. The real difference can be seen in the third section (parameter fit). One can readily see that the confidence intervals are really large both for the kinetic parameters and, especially, the activity profiles. One can also notice that there is a single dominant eigenvalue which indicates that the Hessian is badly conditioned and hence, close to singularity. In this particular case the non-anchored solution is not too far off the anchored one but this is purely coincidental. In any case, confidence intervals that are too large should be avoided.
 
 We now try a final training step, where things go decidedly wrong. Here, we introduce a rogue gene in the training set that is not a p53 target. The affy identifier \Robject{202688\_at} corresponds to the tumor necrosis factor member 10 (TNF10), but it is a ligand. The real p53 target is the TNF10 \emph{receptor} (and is already part of the training set)\footnote{Note that because in this case things are problematic, the algorithm takes a long time to find an optimum.}.
-<<trainingbadgene>>=
+<<trainingbadgene,eval=FALSE>>=
 tHVDMp53b<-training(eset=fiveGyMAS5,genes=c(p53traingenes,"202688_at"),
 				degrate=0.8,actname="p53")
 @
@@ -240,7 +240,7 @@ Problems can can be spotted in many places in this instance. Firstly, the model 
 Before moving on the the next section we can delete unwanted results of some training steps we performed above (\emph{ie} we keep only the \Robject{tHVDMp53} object).
 
 <<garbagecollectionagain>>=
-rm(tHVDMp53na,tHVDMp53b)
+rm(tHVDMp53na)
 @
 
 \subsection{Fitting individual genes and screening in batches}
@@ -259,8 +259,8 @@ However, the default setting consists of leaving the \Robject{firstguess} argume
 > HVDMreport(gHVDMCD38)
 \end{Sinput}
 The sections of the HTML report are essentially the same as for the training step. Where possible, comparisons with genes part of the training step are included. The gene under review (CD38/205692\_s\_at) is very likely to be a p53 target because the model score is fairly low and the sensitivity Z-score is high. It is worth noting that this is a previously unknown p53 target and its dependency status was confirmed using an independent experiment~\cite{HVDM}). We can try to fit another (non-p53 target) gene, we pick TNF10l, which we encountered previously:
-<<badgene>>=
-RgHVDMtnf10l<-fitgene(eset=fiveGyMAS5,gene="202688_at",tHVDM=tHVDMp53)
+<<badgene, eval=FALSE>>=
+gHVDMtnf10<-fitgene(eset=fiveGyMAS5,gene="202688_at",tHVDM=tHVDMp53)
 @
 \begin{Sinput}
 > HVDMreport(gHVDMtnf10l)
