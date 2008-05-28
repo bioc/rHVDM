@@ -39,11 +39,6 @@ foo <- packageDescription("rHVDM")
 
 \maketitle
 
-Warning: as of today (26/05/08) the current version of minpack.lm (1.1-0) is bugged until further notice, we (the rHVDM maintainers) have no bearing on that and we recommend using an earlier version of minpack.lm (1.0-5). We also reverted the current version of rHVDM to the previous one (1.4.0) to be on the safe side, so that the pre-built versions found on the bioconductor repository will work fine.
-
-Update (28/5/08): minpack.lm has been updated to 1.1-1 and seems to work fine. Pre-built versions might still be out of date, however.
-
-
 \tableofcontents
 
 \subsection*{Background}
