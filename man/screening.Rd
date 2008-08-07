@@ -43,7 +43,7 @@ Bounds determining whether a gene is a target of the transcription factor under 
 This default will have to be changed in most cases. As a rule of thumb,  
 5x the model score for the genes in the training set can be used.
 
-- cl1degraterange: lower and upper bounds for the degradation rate (default: c(0.01,5.0)). This is to 
+- cl1degraterange: lower and upper bounds for the degradation rate (default: c(0.05,5.0)). This is to 
 exclude those genes with an absurd degradation rate, measured in (unit time)\^(-1). In our example the
 unit time is an hour. In the case the unit time is different, these default bounds will have to be altered accordingly.
 

@@ -20,9 +20,9 @@ fitgene(eset,gene,tHVDM,transforms,firstguess)
   
 \details{ 
 An exponential transform is set by default for both the basal (Bj) and degradation (Dj) rates (through the transforms argument). This
-forces the values for both these parameters to be positive. It also helps to reach a better fit. To turn this off let transforsm=c(). Even in this case the degradation rate will not be allowed to take non positive values as it causes problems with the
+forces the values for both these parameters to be positive. It also helps to reach a better fit. To turn this off let \code{transforms=c()}. Even in this case the degradation rate will not be allowed to take non positive values as it causes problems with the
 differential operator used internally. The value in the vector indicates the parameter to be transformed: "Bj": basal rate of transcription, "Sj": sensitivity, "Dj": degrdation rate.
-The entry label indicates the transform to be applied; presently, only log-tranforms are implemented (ie "exp").
+The entry label indicates the transform to be applied; presently, only log-transforms are implemented (ie "exp").
 
 This \code{fitgene()} step can only be applied after a \code{training()} step. The output to the \code{training()} step has to be fed through 
 the \code{tHVDM} argument.

@@ -2,9 +2,9 @@
 
 \alias{estimerrors}
 
-\title{computes the standard deviation of the measurement error using pre-calculated tables specifict to the plattform or user-defined table}
+\title{computes the standard deviation of the measurement error using pre-calculated tables specific to the plattform or user-defined table}
 \description{
-  This method takes as main input and ExpressionSet object, and using pre-calculated tables contained in rHVDM, it returns the same object with an extra slot that contains the standard deviation of the measurement error which is indispensable to then run rHVDM proper. The table can be user-defined. To check which tables are stored in rHVDM, just run the command without the "eset" slot missing, it will return a list of the supported rHVDM plattforms. All parameters of this function are optional, see below for details on the effect of omitting one or more of them. The method assumes the the amount of error is dependent on both on the particular microarray and the signal intensity. For more details on how it is computed, pleae refer to the  textual description of rHVDM.
+  This method takes as main input and ExpressionSet object, and using pre-calculated tables contained in rHVDM, it returns the same object with an extra slot that contains the standard deviation of the measurement error which is indispensable to then run rHVDM proper. The table can be user-defined. To check which tables are stored in rHVDM, just run the command without arguments (\code{estimerrors()}), it will return a list of the supported rHVDM plattforms. All parameters of this function are optional, see below for details on the effect of omitting one or more of them. The method assumes the the amount of error is dependent both on the particular microarray and the signal intensity. For more details on how it is computed, please refer to the  textual description of rHVDM.
 }
 \usage{
 estimerrors(eset,plattid,refchips,errtable)
@@ -20,7 +20,7 @@ estimerrors(eset,plattid,refchips,errtable)
 	}
 }
 \details{ 
-	Local interpolation and individual array normalisation are used to estimate the standard deviation of the measurement error for each individual transcript on each microarray. The precise method is laid out in the paper cited below, with some minor modifications that are explained in the textual description or rHVDM.	
+	Local interpolation and individual array normalisation are used to estimate the standard deviation of the measurement error for each individual transcript on each microarray. The precise method is laid out in the paper cited below, with some minor modifications.	
 }
 
 \value{

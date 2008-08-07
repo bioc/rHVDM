@@ -33,7 +33,7 @@ fitgene<-function(eset,gene,tHVDM,transforms=c("exp"="Dj","exp"="Bj"),firstguess
 	sHVDM
 }
 
-screening<-function(eset,genes,HVDM,transforms=c("exp"="Dj","exp"="Bj"),cl1zscorelow=2.5,cl1modelscorehigh=100.0,cl1degraterange=c(0.01,5.0)){
+screening<-function(eset,genes,HVDM,transforms=c("exp"="Dj","exp"="Bj"),cl1zscorelow=2.5,cl1modelscorehigh=100.0,cl1degraterange=c(0.05,5.0)){
 	if(HVDM$type=="training"){
 		reslis<-.screenall(eset=eset,genes=genes,tHVDM=HVDM,transforms=transforms)
 	}
