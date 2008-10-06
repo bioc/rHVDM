@@ -267,7 +267,7 @@ However, the default setting consists of leaving the \Robject{firstguess} argume
 \end{Sinput}
 The sections of the HTML report are essentially the same as for the training step. Where possible, comparisons with genes part of the training step are included. The gene under review (CD38/205692\_s\_at) is very likely to be a p53 target because the model score is fairly low and the sensitivity Z-score is high. It is worth noting that this is a previously unknown p53 target and its dependency status was confirmed using an independent experiment~\cite{HVDM}). We can try to fit another (non-p53 target) gene, we pick TNF10l, which we encountered previously:
 <<badgene>>=
-RgHVDMtnf10l<-fitgene(eset=fiveGyMAS5,gene="202688_at",tHVDM=tHVDMp53)
+gHVDMtnf10l<-fitgene(eset=fiveGyMAS5,gene="202688_at",tHVDM=tHVDMp53)
 @
 \begin{Sinput}
 > HVDMreport(gHVDMtnf10l)
@@ -280,7 +280,7 @@ sHVDMp53<-screening(eset=fiveGyMAS5,genes=genestoscreen[1:5],HVDM=tHVDMp53)
 @
 The inputs for this function are more or less the same as for the individual gene fitting command, except that a first guess option is not available. The \Robject{genes} argument accepts vectors of gene identifiers. The \Robject{genestoscreen} instance is a list of $\approx{750}$ genes we pre-selected that are significantly upregulated and/or present at at least one point in time in the context of this experiment. It is worth to avoid scanning the whole genome. Although fitting an individual gene can be done in a few seconds, those seconds add up if 20k genes are screened! The above example should take approximately five minutes on a standard personal computer (as of December, 2006). 
 
-Other arguments to the \Rfunction{screening} function are the various thresholds beyond which individual genes will be considered to be targets of the transcription factor under review. The \Robject{cl1zscorelow} argument is the bound above which a given sensitivity Z-score will classify a gene as a putative transcription factor target. Likewise, the \Robject{cl1modelscorehigh} is the bound for the model score. To be considered a target, the transcript must have a model score \emph{below} that bound. Finally, the \Robject{cl1degraterange} is the range (given as two entries vector) within which the fitted degradation rate must find itself. To be considered a target, a given gene must satisfy all three conditions. Default values are respectively (2.5,100.0,c(0.01,5.0)). A list of putative p53 targets (collated in a data frame) can, in our example, be obtained via the command
+Other arguments to the \Rfunction{screening} function are the various thresholds beyond which individual genes will be considered to be targets of the transcription factor under review. The \Robject{cl1zscorelow} argument is the bound above which a given sensitivity Z-score will classify a gene as a putative transcription factor target. Likewise, the \Robject{cl1modelscorehigh} is the bound for the model score. To be considered a target, the transcript must have a model score \emph{below} that bound. Finally, the \Robject{cl1degraterange} is the range (given as two entries vector) within which the fitted degradation rate must find itself. To be considered a target, a given gene must satisfy all three conditions. Default values are respectively (2.5,100.0,c(0.05,5.0)). A list of putative p53 targets (collated in a data frame) can, in our example, be obtained via the command
 <<targetlist>>=
 p53targets<-sHVDMp53$results[sHVDMp53$results$class1,]
 @
