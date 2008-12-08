@@ -1,8 +1,8 @@
 Package: rHVDM
 Type: Package
 Title: Hidden Variable Dynamic Modeling
-Version: 1.8.0
-Date: 2008-08-08
+Version: 1.8.1
+Date: 2008-12-09
 Author: Martino Barenco
 Maintainer: Martino Barenco<m.barenco@ucl.ac.uk>
 Depends: R (>= 2.3), R2HTML (>= 1.5), affy (>= 1.5), minpack.lm (>= 1.0-5), Biobase

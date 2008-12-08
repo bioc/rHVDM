@@ -468,6 +468,21 @@ Note that this set of command will also work if no transform was used during the
 \item{Update of the present document and vignettes.}
 \end{itemize}
 
+\paragraph{version 1.6}
+\begin{itemize}
+\item{Revert to older version (too many bugs in the error computation feature).}
+\end{itemize}
+
+\paragraph{version 1.7.5 (devel) and 1.8.0 (release)}
+\begin{itemize}
+\item{Re-introduction of computation of the measurement error.}
+\end{itemize}
+
+\paragraph{version 1.8.1}
+\begin{itemize}
+\item{Introduction of more axes labelling in the reports.}
+\end{itemize}
+
 \paragraph{Future updates}
 \begin{itemize}
 \item{On-line generation of diagnostic graphs (to complement off-line HTML report generation).}
