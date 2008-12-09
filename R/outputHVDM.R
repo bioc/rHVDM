@@ -412,10 +412,10 @@
 			lobnd<-c(alllobnd[parnames],lob)
 			rng<-range(0,vals,upbnd,lobnd)
 			tbp<-(lobnd!=upbnd)
-			x<-barplot(vals,col=col,main=paste("parameter",k),ylim=rng)
+			x<-barplot(vals,col=col,main=paste("parameter",k),ylim=rng,ylab="parameter value")
 			arrows(x[tbp],upbnd[tbp],x[tbp],lobnd[tbp],angle=90,code=3,length=0.05,col="red")
 		}
-		else barplot(vals,col=col,main=paste("parameter",k))
+		else barplot(vals,col=col,main=paste("parameter",k),ylab="parameter value")
 	}
 	par(old)
 	dev.off()
@@ -433,7 +433,7 @@
 	pngname<-"sens_zscores.png"
 	png(pngname,width=400,height=350)
 	old<-par(las=3,mar=c(7,4,4,2)+0.1)
-	barplot(zscores,col=colours)
+	barplot(zscores,col=colours,ylab="sensitivity Z-score")
 	par(old)
 	dev.off()
 	pngname<-.moveindirectory(filename=pngname,dirname=dirname)
@@ -448,7 +448,7 @@
 		pngname<-"hessian_evalues.png"
 		png(pngname,width=300,height=200)
 		old=par(mar=c(2,2,2,1)+0.1,omi=c(0,0,0,0))
-		barplot(ev)
+		barplot(ev,xlab="eigenvalue rank",ylab="eigenvalue")
 		par(old)
 		dev.off()
 		pngname<-.moveindirectory(filename=pngname,dirname=dirname)
@@ -534,12 +534,12 @@
 			lobnd<-alllobnd[parnames]
 			rng<-range(0,vals,upbnd,lobnd)
 			tbp<-(lobnd!=upbnd)
-			x<-barplot(vals,col=col,main=paste("parameter",k),ylim=rng)
+			x<-barplot(vals,col=col,main=paste("parameter",k),ylim=rng,ylab="parameter value")
 			arrows(x[tbp],upbnd[tbp],x[tbp],lobnd[tbp],angle=90,code=3,length=0.05,col="red")
 		}
 		else{ #plot without error bars
 			names(vals)<-genes
-			barplot(vals,col=col,main=paste("parameter",k))
+			barplot(vals,col=col,main=paste("parameter",k), ylab="parameter value")
 		}
 	}
 	par(old)
@@ -578,12 +578,12 @@
 			lobnd<-alllobnd[pnames]
 			tbp<-(upbnd!=lobnd)
 			rng<-range(0,vals,upbnd,lobnd)
-			plot(x=time,y=vals,col=col, main=exprep,ylim=rng,pch="x",ylab="activity")
+			plot(x=time,y=vals,col=col, main=exprep,ylim=rng,pch="x",ylab="activity",xlab="time")
 			lines(time,vals,col="red")
 			if(sum(tbp)>0) arrows(time[tbp],upbnd[tbp],time[tbp],lobnd[tbp],angle=90,code=3,length=0.05)
 		}
 		else{ #plot without error bars
-			plot(x=time,y=vals,col=col, main=exprep,pch="x",ylab="activity")
+			plot(x=time,y=vals,col=col, main=exprep,pch="x",ylab="activity",xlab="time")
 			lines(time,vals,col="red")
 		}
 	}
@@ -609,7 +609,7 @@
 		pngname<-"hessian_evalues.png"
 		png(pngname,width=500,height=250)
 		old=par(mar=c(2,2,2,1)+0.1,omi=c(0,0,0,0))
-		barplot(ev)
+		barplot(ev,xlab="eigenvalue rank",ylab="eigenvalue")
 		par(old)
 		dev.off()
 		pngname<-.moveindirectory(filename=pngname,dirname=dirname)
@@ -666,7 +666,7 @@
 		ci<-1.96*HVDM$dm$sdev[dnames]
 		model<-HVDM$dm$estimate[dnames]
 		high<-max(model,signal+ci)
-		plot(time,signal,main=exprep,ylab="concentration",ylim=c(0,high),pch="x")
+		plot(time,signal,main=exprep,ylab="concentration",ylim=c(0,high),pch="x",xlab="time")
 		arrows(time,signal+ci,time,signal-ci,angle=90,code=3,length=0.05)
 		lines(time,model,col="red")
 	}
@@ -716,9 +716,9 @@
 		pngname<-"training_s1.png"
 		png(pngname,width=800,height=400)
 		old<-par(mfrow=c(1,3),las=3,mar=c(7,4,4,2)+0.1)
-		barplot(scores$bygene,main="by gene",crt=45)
-		barplot(scores$bytc,main="by time course")
-		barplot(scores$bytcpertp,main="by time course\n(average per time point)")
+		barplot(scores$bygene,main="by gene",crt=45,ylab="score")
+		barplot(scores$bytc,main="by time course",ylab="score")
+		barplot(scores$bytcpertp,main="by time course\n(average per time point)",ylab="score")
 		par(old)
 		dev.off()
 		pngname<-.moveindirectory(filename=pngname,dirname=dirname)
@@ -738,7 +738,7 @@
 			rng<-range(rng,tc$score)
 		}
 		for(tc in scores$withintc){
-			barplot(tc$score,main=tc$name,ylim=rng)
+			barplot(tc$score,main=tc$name,ylim=rng,ylab="score")
 		}
 		par(old)
 		dev.off()
@@ -787,9 +787,9 @@
 		genescore<-c(scores$bygene,tsetscore)
 		colours<-rep("grey",length(genescore))
 		colours[1]<-"green"
-		barplot(genescore,main="by gene\n(grey: genes in the training set)",crt=45,col=colours)
-		barplot(scores$bytc,main=paste("by time course for ",genename,sep=""))
-		barplot(scores$bytcpertp,main=paste("by time course for ",genename,"\n(average per time point)",sep=""))
+		barplot(genescore,main="by gene\n(grey: genes in the training set)",crt=45,col=colours,ylab="score")
+		barplot(scores$bytc,main=paste("by time course for ",genename,sep=""),ylab="score")
+		barplot(scores$bytcpertp,main=paste("by time course for ",genename,"\n(average per time point)",sep=""),ylab="score")
 		par(old)
 		dev.off()
 		pngname<-.moveindirectory(filename=pngname,dirname=dirname)
@@ -809,7 +809,7 @@
 			rng<-range(rng,tc$score)
 		}
 		for(tc in scores$withintc){
-			barplot(tc$score,main=tc$name,ylim=rng)
+			barplot(tc$score,main=tc$name,ylim=rng,ylab="score")
 		}
 		par(old)
 		dev.off()
