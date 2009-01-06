@@ -1,0 +1,11 @@
+import(R2HTML, Biobase)
+
+export(estimerrors,
+       fitgene,
+       HVDMcheck,
+       HVDMreport,
+       screening,
+       training,
+       ".exportfree",
+       ".importfree"
+       )       
