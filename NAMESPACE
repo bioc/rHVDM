@@ -1,4 +1,4 @@
-import(R2HTML, Biobase)
+import(R2HTML, Biobase, affy)
 
 export(estimerrors,
        fitgene,
