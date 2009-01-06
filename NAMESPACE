@@ -1,4 +1,4 @@
-import(R2HTML, Biobase, affy)
+import(R2HTML, Biobase, affy, minpack.lm)
 
 export(estimerrors,
        fitgene,
