@@ -164,7 +164,6 @@
 }
 
 .greport<-function(sHVDM,name){
-	
 	#filenames and directory management
 	genename<-rownames(sHVDM$par$genemap)
 	if (missing(name)){
@@ -229,7 +228,12 @@
 	HTML(x="<a name=Parfit></a>",file=HTMLfile)
 	HTML.title(x="3) Parameter fit",HR=2,file=HTMLfile)
 	HTML("<a href=#Top>Top</a> <a href=#Input>1) Inputs</a>  <a href=#Modelsco>2) Model score</a>     <a href=#Genefit>4) Comparison of model and data, gene by gene</a>",file=HTMLfile)
-	.parameteroutputg(tHVDM=sHVDM,file=HTMLfile,prefix=prefix)
+	if(length(sHVDM$distribute$free)==3){
+		.parameteroutputg(tHVDM=sHVDM,file=HTMLfile,prefix=prefix)
+	}
+	else{
+		.parameteroutputg.nl(tHVDM=sHVDM,file=HTMLfile,prefix=prefix)
+	}
 	HTML("<a href=#Top>Top</a>",file=HTMLfile)
 	HTML("<hr  width=100% size=20 noshade>",file=HTMLfile)
 	
@@ -369,13 +373,14 @@
 		allupbnd<-(.importfree(HVDM=tHVDM,x=central[nams]+1.96*sdev[nams]))$par$parameters
 		alllobnd<-(.importfree(HVDM=tHVDM,x=central[nams]-1.96*sdev[nams]))$par$parameters
 		#computation of zscore sensitivity
-		nameex<-paste(names(tHVDM$scores$bygene),"Sj",sep=".")
+		nameex<-paste(names(tHVDM$scores$bygene),"Sj",sep=".")#replace Sj with Vj in case the nuber of parameters exceeds 3
 		upbnd<-(.importfree(HVDM=tHVDM,x=central[nams]+sdev[nams]))$par$parameters
 		lobnd<-(.importfree(HVDM=tHVDM,x=central[nams]-sdev[nams]))$par$parameters
 		zscore<-2*central[nameex]/(upbnd[nameex]-lobnd[nameex])
 		rm(work)
 	}
 	else zscore<--1
+	
 	
 	#kinetic parameters
 	HTML.title(x="Kinetic parameters",HR=3,file=file)
@@ -480,6 +485,138 @@
 	}
 }
 
+.parameteroutputg.nl<-function(tHVDM,file,prefix){
+	#name of directory
+	dirname<-paste(prefix,.SUFFX.rHVDM,sep="")
+
+	#Hessian stuff
+	H<-tHVDM$results$hessian
+	nfp<-length(tHVDM$distribute$free)
+	rnk<-.hessrank(H)
+	if (rnk==nfp){
+		HTML.title(x="NB: The hessian has full rank",HR=5,file=file)
+		ciS=TRUE
+	}
+	else{
+		HTML.title(x="NB: The hessian is singular",HR=5,file=file)
+		HTML.title(x="Confidence intervals will not be plotted",HR=5,file=file)
+		HTML.title(x="The covariance matrix can not be computed",HR=5,file=file)
+		ciS=FALSE
+	}
+	
+	#extract transformed bounds (if applicable)
+	if (ciS){
+		vcov<-solve(H)
+		sdev<-diag(vcov)^0.5
+		work<-tHVDM
+		central<-.exportfree(work)
+		nams<-names(central)
+		allupbnd<-(.importfree(HVDM=tHVDM,x=central[nams]+1.96*sdev[nams]))$par$parameters
+		alllobnd<-(.importfree(HVDM=tHVDM,x=central[nams]-1.96*sdev[nams]))$par$parameters
+		#computation of zscore of Vj (no more sensitivity with nonlinear model)
+		nameex<-paste(names(tHVDM$scores$bygene),"Vj",sep=".")
+		upbnd<-(.importfree(HVDM=tHVDM,x=central[nams]+sdev[nams]))$par$parameters
+		lobnd<-(.importfree(HVDM=tHVDM,x=central[nams]-sdev[nams]))$par$parameters
+		zscore<-2*central[nameex]/(upbnd[nameex]-lobnd[nameex])
+		rm(work)
+	}
+	else zscore<--1
+	
+	
+	#kinetic parameters
+	HTML.title(x="Kinetic parameters",HR=3,file=file)
+	genes<-rownames(tHVDM$par$genemap)
+	kpar<-tHVDM$par$hill
+	if (length(tHVDM$distribute$free)==4){
+		kpar<-tHVDM$par$MM
+	}
+	pngname<-"kinetic_parms.png"
+	png(pngname,width=800,height=600)
+	old=par(mfrow=c(2,3),las=3,mar=c(7,4,4,2)+0.1)
+	for(k in kpar){
+		cen<-tHVDM$tset[,k]
+		upb<-tHVDM$tset[,paste(k,"u",sep="_")]
+		lob<-tHVDM$tset[,paste(k,"d",sep="_")]
+		tgenes<-rownames(tHVDM$tset)
+		parnames<-paste(genes,k,sep=".")
+		col<-c(rep("green",length(parnames)),rep("grey",length(tgenes)))
+		vals<-c(tHVDM$par$parameters[parnames],cen)
+		#determine bar colours
+		#prepare plot
+		names(vals)<-c(genes,tgenes)
+		if (ciS){
+			upbnd<-c(allupbnd[parnames],upb)
+			lobnd<-c(alllobnd[parnames],lob)
+			rng<-range(0,vals,upbnd,lobnd)
+			tbp<-(lobnd!=upbnd)
+			x<-barplot(vals,col=col,main=paste("parameter",k),ylim=rng,ylab="parameter value")
+			arrows(x[tbp],upbnd[tbp],x[tbp],lobnd[tbp],angle=90,code=3,length=0.05,col="red")
+		}
+		else barplot(vals,col=col,main=paste("parameter",k),ylab="parameter value")
+	}
+	par(old)
+	dev.off()
+	pngname<-.moveindirectory(filename=pngname,dirname=dirname)
+	HTMLInsertGraph(GraphFileName=pngname,Align="left",file=file,WidthHTML=800,
+					Caption="Green:gene under review, Grey:training genes, fitted individually. If the hessian is singular, corresponding confidence intervals cannot be determined.")
+	HTMLbr(x=1,file=file)
+	
+	#zscore plot
+	zscores<-c(zscore,tHVDM$tset$Vj_z_score)
+	names(zscores)<-c(names(tHVDM$scores$bygene),rownames(tHVDM$tset))
+	colours<-rep("grey",length(zscores))
+	colours[1]<-"green"
+	HTML.title(x="Vj Z-score",HR=3,file=file)
+	pngname<-"sens_zscores.png"
+	png(pngname,width=400,height=350)
+	old<-par(las=3,mar=c(7,4,4,2)+0.1)
+	barplot(zscores,col=colours,ylab="sensitivity Z-score")
+	par(old)
+	dev.off()
+	pngname<-.moveindirectory(filename=pngname,dirname=dirname)
+	HTMLInsertGraph(GraphFileName=pngname,Align="left",file=file,WidthHTML=400,
+					Caption="Z-scores of the training set are in grey (the gene under review is in green). A Z-score equal to -1 indicates that it could not be computed because of singularity problems.")
+	HTMLbr(x=1,file=file)
+		
+	#eigenvalues of variance-covariance matrix (if applicable)
+	if (ciS){
+		HTML.title(x="Eigenvalues of the covariance matrix",HR=3,file=file)
+		ev<-eigen(vcov)$values
+		pngname<-"hessian_evalues.png"
+		png(pngname,width=300,height=200)
+		old=par(mar=c(2,2,2,1)+0.1,omi=c(0,0,0,0))
+		barplot(ev,xlab="eigenvalue rank",ylab="eigenvalue")
+		par(old)
+		dev.off()
+		pngname<-.moveindirectory(filename=pngname,dirname=dirname)
+		HTMLInsertGraph(GraphFileName=pngname,Align="left",file=file,WidthHTML=300,
+					Caption="The covariance matrix is estimated by inverting the Hessian.")
+		HTMLbr(x=1,file=file)
+	}
+	
+	#output correlation matrix
+	if (ciS){ #print out correlation matrix (if applicable)
+		corr<-round(cov2cor(vcov),3)
+		HTML.title(x="Correlation matrix of the free parameters",HR=3,file=file)
+		dim<-length(tHVDM$distribute$free)
+		#subdimension 6 or 7, make sure remainder is not 1
+		subd<-6
+		if(dim%%subd==1) subd<-7
+		nstep<-ceiling(dim/subd)
+		for(i in 1:nstep){
+			colrng<-c(1,subd)+(i-1)*subd
+			colrng[2]<-min(dim,colrng[2])
+			for (j in 1:nstep){
+				linrng<-c(1,subd)+(j-1)*subd
+				linrng[2]<-min(dim,linrng[2])
+				HTML.title(x=paste("lines",linrng[1],"-",linrng[2]," / ","columns",colrng[1],"-",colrng[2]),HR=5,file=file)
+				HTML(corr[c(linrng[1]:linrng[2]),c(colrng[1]:colrng[2])],file=file,align="left")
+			}
+		}
+		HTMLbr(x=1,file=file)
+	}
+}
+
 .parameteroutput<-function(tHVDM,file,rname){
 	#directory name
 	dirname<-paste(rname,.SUFFX.rHVDM,sep="")
@@ -514,12 +651,24 @@
 	#kinetic parameters
 	HTML.title(x="Kinetic parameters",HR=3,file=file)
 	genes<-rownames(tHVDM$par$genemap)
-	kpar<-tHVDM$par$linear  
+	kpar<-c("bidon")
+	for(gene in genes){
+		modell<-as.character(tHVDM$par$genemap[gene,"model"])
+		params<-tHVDM$par[modell][[1]]
+		kpar<-union(kpar,params)
+	}
+	kpar<-setdiff(kpar,c("bidon"))
+	nkpar<-length(kpar)
+	grid<-c(ceiling(nkpar/3),min(nkpar,3))  
 	pngname<-"kinetic_pars.png"
-	png(pngname,width=800,height=300)
-	old=par(mfrow=c(1,3),las=3,mar=c(7,4,4,2)+0.1)
-	for(k in kpar){  #[tbc] this is for a normal linear model only
+	png(pngname,width=800/3*grid[2],height=300*grid[1])
+	old=par(mfrow=grid,las=3,mar=c(7,4,4,2)+0.1)
+	for(k in kpar){  #[tbc] this should work for any model
 		parnames<-paste(genes,k,sep=".")
+		genez<-genes
+		names(genez)<-parnames
+		parnames<-intersect(parnames,names(tHVDM$par$parameters))
+		genez<-genez[parnames]
 		col<-rep("green",length(parnames))
 		names(col)<-parnames
 		vals<-tHVDM$par$parameters[parnames]
@@ -529,7 +678,7 @@
 		col[free]<-"grey"
 		if (ciS){ #plot with error bars
 			#prepare plot
-			names(vals)<-genes
+			names(vals)<-genez[parnames]
 			upbnd<-allupbnd[parnames]
 			lobnd<-alllobnd[parnames]
 			rng<-range(0,vals,upbnd,lobnd)
@@ -538,8 +687,8 @@
 			arrows(x[tbp],upbnd[tbp],x[tbp],lobnd[tbp],angle=90,code=3,length=0.05,col="red")
 		}
 		else{ #plot without error bars
-			names(vals)<-genes
-			barplot(vals,col=col,main=paste("parameter",k), ylab="parameter value")
+			names(vals)<-genez[parnames]
+			barplot(vals,col=col,main=paste("parameter",k),ylab="parameter value")
 		}
 	}
 	par(old)
@@ -555,7 +704,7 @@
 	HTMLbr(x=1,file=file)
 	
 	#transcription factor activity
-	HTML.title(x=paste("Transcription factor activity of",tHVDM$par$activators),HR=3,file=file)
+	HTML.title(x=paste("Transcription factor activity (or concentration if non-linear model) of",tHVDM$par$activators),HR=3,file=file)
 	pngname<-"trfact_activity.png"
 	tc<-tHVDM$tc
 	ntc<-length(tc)

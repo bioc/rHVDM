@@ -483,6 +483,21 @@ Note that this set of command will also work if no transform was used during the
 \item{Introduction of more axes labelling in the reports.}
 \end{itemize}
 
+\paragraph{versions 1.9.2}
+\begin{itemize}
+\item{Introduction of NAMESPACE feature}
+\end{itemize}
+
+\paragraph{versions 1.9.3}
+\begin{itemize}
+\item{Introduction of a new plattform for the measurement error estimation (affy HG ST1.0 array.)}
+\end{itemize}
+
+\paragraph{versions 1.9.4}
+\begin{itemize}
+\item{Introduction of new commands and data to accomodate a nonlinear formulation. Individual vignettes are written. A full documentation will be done in susequent version.)}
+\end{itemize}
+
 \paragraph{Future updates}
 \begin{itemize}
 \item{On-line generation of diagnostic graphs (to complement off-line HTML report generation).}

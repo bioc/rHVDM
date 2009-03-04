@@ -31,7 +31,7 @@
 	genes<-rownames(HVDM$par$genemap)
 	acts<-HVDM$par$activators
 	for (gene in genes){
-		model<-HVDM$par$genemap[gene,"model"]
+		model<-as.character(HVDM$par$genemap[gene,"model"])
 		gparnames<-paste(gene,HVDM$par[model][[1]],sep=".")
 		#correct degradation rates that would render the system singular [tbc] maybe...
 		degaddress<-paste(gene,"Dj",sep=".")
@@ -48,10 +48,45 @@
 				prod<-gpar[1]+gpar[2]*actprof
 				mat<-tc$A+diag(gpar[3],length(tc$time))
 				HVDM$dm$estimate[outnames]<-solve(mat,prod)
-			} #[tbc] other model types will have to be inserted here as "else if"s 
+			} #[tbc] other model types will have to be inserted here as "else if"s
+			else if(model=="MM"){#MMstands for Michaelis-Menten
+				activatorname<-acts[1]
+				trfconc<-HVDM$par$parameters[paste(activatorname,exprep,tc$time,sep=".")] #transcription factor concentration
+				prod<-gpar[1]+gpar[2]*trfconc/(trfconc+gpar[3]) #Bj+Vj*f/(f+Kj)
+				mat<-tc$A+diag(gpar[4],length(tc$time)) #the degradation rate is now the fourth parameter
+				HVDM$dm$estimate[outnames]<-solve(mat,prod)
+			}
+			else if(model=="hill"){#hill is not an accronym
+				activatorname<-acts[1]
+				trfconc<-HVDM$par$parameters[paste(activatorname,exprep,tc$time,sep=".")] #transcription factor concentration
+				
+				prod<-.prodhill.patch(trfconc,gpar)
+				mat<-tc$A+diag(gpar[5],length(tc$time)) #the degradation rate is now the fourth parameter
+				HVDM$dm$estimate[outnames]<-solve(mat,prod)
+			} 
 		}
 	}
 	HVDM
+}
+
+
+.prodhill.patch<-function(trfconc,gpar){
+	#this patch had to be added to deal with the cases where infinity is met in the production term when computing the hill function
+	fn<-trfconc^gpar[4]
+	infp<-is.infinite(fn)
+	kn<-gpar[3]^gpar[4]*trfconc^0
+	infk<-is.infinite(kn)
+	#now, deal with 4 cases
+	#none is infinite:normal formula
+	#both are infinite: fraction is=0.5
+	#kn only is infinite: fraction is zero
+	#fn only is infinite: fraction is one
+	frac<-fn/(kn+fn)
+	frac[infp]<-1.
+	frac[infk]<-0.
+	frac[infp & infk]<-0.5
+	frac[fn==0]<-0.0
+	gpar[1]+frac*gpar[2]
 }
 
 
@@ -107,6 +142,17 @@
 	res$withintc<-withintc
 	res$s2<-s2
 	res$devs<-devs
+	#add in various indicators: BIC, AIC, Q-stat
+	info<-vector("list")
+	info$score<-res$total
+	info$paracount<-length(HVDM$distribute$free)
+	info$datacount<-length(s2)
+	datacount<-info$datacount
+	paracount<-info$paracount
+	info$BIC<-datacount*log(res$total/datacount)+paracount*log(datacount)
+	info$AIC<-2*paracount+datacount*(log(-4*asin(-1)*res$total/datacount)+1)
+	info$Qstat<-pchisq(res$total,datacount-paracount,lower.tail=FALSE)
+	res$info<-info
 	res
 }
 
@@ -160,6 +206,7 @@
 	if(ltr>0){
 		for (i in 1:ltr){
 			HVDM$distribute$transf[[i]]$pars<-setdiff(HVDM$distribute$transf[[i]]$pars,names(HVDM$distribute$known))
+			HVDM$distribute$transf[[i]]$pars<-intersect(HVDM$distribute$transf[[i]]$pars,names(HVDM$par$parameters))
 		}
 	}
 	HVDM$distribute$free<-freeparameterslist
@@ -195,7 +242,7 @@
 	#create "parameters" object
 	
 .paramlist<-function(timecourses,genenames,genemodels,activatornames){
-	res<-list("linear"=c("Bj","Sj","Dj"),"activators"=activatornames) # [tbc] add other model types here
+	res<-list("linear"=c("Bj","Sj","Dj"),"MM"=c("Bj","Vj","Kj","Dj"),"hill"=c("Bj","Vj","Kj","Nj","Dj"),"activators"=activatornames) # [tbc] add other model types here
 	paramvec<-vector("numeric")
 	dfgnames<-genenames
 	dfgmodel<-genemodels
@@ -216,6 +263,20 @@
 		if (genemodels[ptgene]=="linear"){
 			paramnames=c("Bj","Sj","Dj")
 			paramvals<-rep(1.0,3)
+			names(paramvals)<-paste(gene,paramnames,sep=".")
+			dfgnames[ptgene]<-gene
+			paramvec<-append(paramvec,paramvals)
+		}
+		else if(genemodels[ptgene]=="MM"){
+			paramnames=c("Bj","Vj","Kj","Dj")
+			paramvals<-rep(1.0,4)
+			names(paramvals)<-paste(gene,paramnames,sep=".")
+			dfgnames[ptgene]<-gene
+			paramvec<-append(paramvec,paramvals)
+		}
+		else if(genemodels[ptgene]=="hill"){
+			paramnames=c("Bj","Vj","Kj","Nj","Dj")
+			paramvals<-rep(1.0,5)
 			names(paramvals)<-paste(gene,paramnames,sep=".")
 			dfgnames[ptgene]<-gene
 			paramvec<-append(paramvec,paramvals)
@@ -379,6 +440,21 @@
 	res<-x
 	res[gt1]<-x[gt1]-1
 	res[!gt1]<-log(x[!gt1])
+	res
+}
+
+#The function below (expp1, with inverse invexpp1), makes sure its output always exceeds 1
+
+.expp1<-function(x){
+	res<-exp(x)+1
+	res
+}
+
+.invexpp1<-function(x){
+	leqq1<-(x<=1)
+	res<-x
+	res[leqq1]<-1e-15
+	res[!leqq1]<-log(x[!leqq1]-1.0)
 	res
 }
 

@@ -16,15 +16,7 @@ training<-function(eset,genes,transforms=c("exp"="Dj","exp"="Bj"),degrate,actnam
 	tHVDM
 }
 
-HVDMreport<-function(HVDM,name){
-	if(HVDM$type=="training") res<-.treport(tHVDM=HVDM,name=name)
-	else if(HVDM$type=="indgene") res<-.greport(sHVDM=HVDM,name=name)
-	else if(HVDM$type=="screening") res<-.sreport(lHVDM=HVDM,name=name)
-	message(paste("the report",res$file,"was generated"))
-	message(paste("in directory",res$directory))
-}
-
-fitgene<-function(eset,gene,tHVDM,transforms=c("exp"="Dj","exp"="Bj"),firstguess){
+fitgene.lin<-function(eset,gene,tHVDM,transforms=c("exp"="Dj","exp"="Bj"),firstguess){
 	sHVDM<-.fitgene(eset=eset,gene=gene,tHVDM=tHVDM,transforms=transforms,firstguess=firstguess)
 	sHVDM$tset<-tHVDM$itgenes
 	sHVDM$eset<-deparse(substitute(eset))
@@ -33,7 +25,7 @@ fitgene<-function(eset,gene,tHVDM,transforms=c("exp"="Dj","exp"="Bj"),firstguess
 	sHVDM
 }
 
-screening<-function(eset,genes,HVDM,transforms=c("exp"="Dj","exp"="Bj"),cl1zscorelow=2.5,cl1modelscorehigh=100.0,cl1degraterange=c(0.05,5.0)){
+screening<-function(eset,genes,HVDM,transforms=c("exp"="Dj","exp"="Bj"),cl1zscorelow=2.5,cl1modelscorehigh=100.0,cl1degraterange=c(0.01,5.0)){
 	if(HVDM$type=="training"){
 		reslis<-.screenall(eset=eset,genes=genes,tHVDM=HVDM,transforms=transforms)
 	}

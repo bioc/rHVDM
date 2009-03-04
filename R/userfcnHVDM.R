@@ -1,5 +1,32 @@
 #user function(s) for rHVDM (should be OK for all types of models)
 
+fitgene<-function(eset,gene,tHVDM,transforms,firstguess,criterion="BIC"){
+	if (tHVDM$type=="training"){
+		if(missing(transforms)) sHVDM<-fitgene.lin(eset=eset,gene=gene,tHVDM=tHVDM,firstguess=firstguess)
+		else sHVDM<-fitgene.lin(eset=eset,gene=gene,tHVDM=tHVDM,transforms=transforms,firstguess=firstguess)
+	}
+	else{
+		sHVDM<-.fitgene.best(eset=eset,gene=gene,tHVDM=tHVDM,criterion=criterion)
+	}
+	sHVDM$eset<-deparse(substitute(eset))
+	sHVDM$tHVDMname<-deparse(substitute(tHVDM))
+	sHVDM$type<-c("indgene")
+	sHVDM
+}
+
+HVDMreport<-function(HVDM,name){
+	if(HVDM$type=="training") res<-.treport(tHVDM=HVDM,name=name)
+	else if(HVDM$type=="indgene") res<-.greport(sHVDM=HVDM,name=name)
+	else if(HVDM$type=="screening") res<-.sreport(lHVDM=HVDM,name=name)
+	else if(HVDM$type=="training.nl"){
+		HVDM$type<-"training"
+		res<-.treport(tHVDM=HVDM,name=name)
+		HVDM$type<-"training.nl"
+	}
+	message(paste("the report",res$file,"was generated"))
+	message(paste("in directory",res$directory))
+}
+
 HVDMcheck<-function(eset,pdata){
 	if (missing(pdata)) pdata<-pData(eset)
 	#check that the pheno data has all the required fields

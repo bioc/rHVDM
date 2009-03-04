@@ -7,7 +7,7 @@
   This method fits the three kinetic parameter values for a particular gene. It returns a list containing the results.
 }
 \usage{
-fitgene(eset,gene,tHVDM,transforms,firstguess)
+fitgene(eset,gene,tHVDM,transforms,firstguess,criterion)
 }
 
 \arguments{
@@ -16,13 +16,14 @@ fitgene(eset,gene,tHVDM,transforms,firstguess)
   \item{transforms}{ a vector containing the kinetic parameter identifiers that have to be transformed during optimisation (optional) }
   \item{tHVDM}{ the output of the training set }
   \item{firstguess}{ first guess for the fitting (optional, see details)}
+  \item{criterion}{ model selection in the nonlinear case }
 }
   
 \details{ 
-An exponential transform is set by default for both the basal (Bj) and degradation (Dj) rates (through the transforms argument). This
-forces the values for both these parameters to be positive. It also helps to reach a better fit. To turn this off let \code{transforms=c()}. Even in this case the degradation rate will not be allowed to take non positive values as it causes problems with the
+An exponential transform is set by default for both the basal (Bj), degradation (Dj) rates (through the transforms argument) and possibly Kj (in case a nonlinear model is used). This
+forces the values for both these parameters to be positive. It also helps to reach a better fit. To turn this off let transforsm=c(). Even in this case the degradation rate will not be allowed to take non positive values as it causes problems with the
 differential operator used internally. The value in the vector indicates the parameter to be transformed: "Bj": basal rate of transcription, "Sj": sensitivity, "Dj": degrdation rate.
-The entry label indicates the transform to be applied; presently, only log-transforms are implemented (ie "exp").
+The entry label indicates the transform to be applied; presently, only log-tranforms are implemented (ie "exp").
 
 This \code{fitgene()} step can only be applied after a \code{training()} step. The output to the \code{training()} step has to be fed through 
 the \code{tHVDM} argument.
@@ -33,6 +34,8 @@ It can either be a vector with three entries containing a first guess for the ba
 the sensitivity, the degradation rate (in that order). 
 Alternatively, another output from the \code{fitgene()} function (for example from a gene that
  has a similar expression profile) can be supplied as a \code{firstguess} argument.
+
+The \code{criterion} argument is only used if the training object fed through the tHVDM command is a non-linear fit and determines the type of criterion used for model selection between Michelis-Menten and Hill. Possible values fed throught this argument are "BIC" (Bayesian information criterion, default) and "AIC" (Akaike information critertion). This argument is ignored in case of linear fitting.
 }
 
 \value{
