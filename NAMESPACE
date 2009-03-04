@@ -6,6 +6,10 @@ export(estimerrors,
        HVDMreport,
        screening,
        training,
+       training.nl,
+       screening.nl,
+       fitgene.nl,
+       fitgene.lin,
        ".exportfree",
        ".importfree"
        )       
