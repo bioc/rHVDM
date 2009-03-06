@@ -221,7 +221,7 @@
 																				forcetransforms=TRUE,firstguess){
 	if(forcetransforms) tHVDMnl<-.initialisetrainingHVDM.nl(HVDM=inputHVDM,constraints=constraints,
 																transforms=transforms)
-	else tHVDMnl<-.initialisetrainingHVDM.nl(HVDM=iptHVDM,constraints=constraints,transforms=c())
+	else tHVDMnl<-.initialisetrainingHVDM.nl(HVDM=inputHVDM,constraints=constraints,transforms=c())
 	#here introduce the possibility to input ad hoc first guesses (input a parameter in training.nl)
 	if (missing(firstguess)){
 		tHVDMnl<-.tcfirstguess.nl(tHVDM=tHVDMnl,inputHVDM=inputHVDM)
@@ -415,7 +415,7 @@
 			}
 			else if (fctns[i]=="mexp"){
 				transf[[i]]$fctn<-.mexp
-				transf[[i]]$inverse<-.invemexp
+				transf[[i]]$inverse<-.invmexp
 			}
 			else if (fctns[i]=="expp1"){
 				transf[[i]]$fctn<-.expp1
