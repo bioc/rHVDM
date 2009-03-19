@@ -128,7 +128,7 @@ estimerrors<-function(eset,plattid,refchips,errtable){
 						res
 					}
 					else{
-						errtable<-rHVDMplattforms[[foundplattid]]$errtable
+						errtable<-.rHVDMplattforms[[foundplattid]]$errtable
 						res<-.computerrs(eset=eset,errtable=errtable,refs=refchips)
 					}
 				}
@@ -143,7 +143,7 @@ estimerrors<-function(eset,plattid,refchips,errtable){
 						res
 					}
 					else{#all is well
-						errtable<-rHVDMplattforms[[foundplattid]]$errtable
+						errtable<-.rHVDMplattforms[[foundplattid]]$errtable
 						res<-.computerrs(eset=eset,errtable=errtable,refs=refchips)
 						res
 					}

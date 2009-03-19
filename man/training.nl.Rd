@@ -25,7 +25,7 @@ An exponential transform is set by default for the basal (Bj) and degradation (D
 
 The \code{constraints} argument is used to specify values for know values of some of the parameters, typically the strength of the activator for some time points. See example below for the syntax.
 
-The \code{genemodels} argument is compulsory and used to specify the model used for each individual gene. MM means Michaelis-Menten model whereas hill means a hill function is used. The general form of the production function is $B_j+V_j*f(t)^N_j/(K_j^N_j+f(t)^N_j)$ where Nj=1 for the MM model and Nj>1 in the hill case. See below for the syntax of the input.
+The \code{genemodels} argument is compulsory and used to specify the model used for each individual gene. MM means Michaelis-Menten model whereas hill means a hill function is used. The general form of the production function is $B_j+V_j*f(t)^N_j/(K_j^{N_j}+f(t)^N_j)$ where Nj=1 for the MM model and Nj>1 in the hill case. See below for the syntax of the input.
 
 The {firstguess} argument is not in use yet and will offer the possibility to enter a first guess for the fitting.
 }

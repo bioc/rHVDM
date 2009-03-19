@@ -113,7 +113,7 @@
 	res
 }
 
-.returnplattidnumber<-function(plattid,repository=rHVDMplattforms){#index of plattid returned
+.returnplattidnumber<-function(plattid,repository=.rHVDMplattforms){#index of plattid returned
 	res<-"notfound"
 	n<-length(repository)
 	for (i in c(1:n)){
@@ -125,7 +125,7 @@
 }
 
 .returnsupportedplattforms<-function(){
-	n<-length(rHVDMplattforms)
+	n<-length(.rHVDMplattforms)
 	if (n==0){
 		message("no microarray plattforms are supported in rHVDM yet")
 		return()
@@ -134,8 +134,8 @@
 		plattform_id<-c(1:n)
 		description<-c(1:n)
 		for(i in c(1:n)){
-			plattform_id[i]<-rHVDMplattforms[[i]]$id
-			description[i]<-rHVDMplattforms[[i]]$description
+			plattform_id[i]<-.rHVDMplattforms[[i]]$id
+			description[i]<-.rHVDMplattforms[[i]]$description
 		}
 		res<-cbind(plattform_id,description)
 		res
@@ -193,6 +193,7 @@
 #.plattform[[i]]$source: source of calibration data
 #.plattform[[i]]$errtable: nx2 matrix containing the log of the signal in the first column and the variance in the second
 #.plattform[[i]]$geneids: vector of gene ids (in text format) that could be used to identify the plattform
+#this last member will be left out from (1.9.5, march 2009)
 
 .repositoryupdate<-function(repository,X,id,description,source,slot){
 	resplatt<-list()
@@ -257,3 +258,90 @@
 	res
 }
 
+#data for the plattform tables
+
+.rHVDMplattforms<-list()
+
+#affy U133
+
+affy133<-list()
+affy133$id<-"affy_HGU133A"
+affy133$description<-"Affymetrix Human genome 133A 3-prime array, MAS5 summary"
+affy133$source<-"Affymetrix spike-in experiment, data accessible on the Affimetrix website"
+affy133$errtable<-t(matrix(c(
+-0.2106170,     3.030952,
+0.4637223  ,   4.488031,
+0.8341946  ,   6.786352,
+1.1527715  ,   8.866159,
+1.4474100  ,  13.244326,
+1.7220945  ,  15.747942,
+1.9901272  ,  17.893599,
+2.2386661  ,  22.929129,
+2.4586614  ,  24.337833,
+2.6499757  ,  27.111229,
+2.8247291  ,  29.096279,
+2.9791003  ,  31.097968,
+3.1231124  ,  34.673634,
+3.2639854  ,  40.087314,
+3.4078585  ,  41.540187,
+3.5490655  ,  48.236199,
+3.6917189  ,  55.368312,
+3.8422731  ,  59.359361,
+3.9964226  ,  66.993106,
+4.1579789  ,  75.847599,
+4.3225134  , 103.653371,
+4.4947673  , 119.709417,
+4.6758389  , 148.446633,
+4.8570693  , 170.795388,
+5.0548622  , 227.148177,
+5.2864374  ,313.226515,
+5.5693897  , 468.947419,
+5.9312727  , 770.988764,
+6.4451406 , 1836.468715,
+7.6395270, 13000.404178
+),2,30))
+
+.rHVDMplattforms[[1]]<-affy133
+rm(affy133)
+
+#affy gene expression array
+
+affyge<-list()
+affyge$id<-"affy_ID10ST"
+affyge$description<-"Affy Human genome arrays (1.0 ST), summarized using PLIER with quantile normalization"
+affyge$source<-"computed on technical tripicates of a T-cell cell line (MOLT4), at the Institute of Child Health, London, UK. m.hubank@ich.ucl.ac.uk"
+affyge$errtable<-t(matrix(c(
+0.3966758 ,    7.357677,
+1.5387863 ,    7.390087,
+2.0228899 ,    9.665248,
+2.3300754 ,    9.426613,
+2.5602427 ,   11.262398,
+2.7582411 ,   14.556250,
+2.9275274 ,   16.102466,
+3.0902940 ,   18.270034,
+3.2452735 ,   23.117356,
+3.3987511 ,   28.259277,
+3.5488812 ,   33.033751,
+3.6961924 ,   39.944499,
+3.8452394 ,   46.567401,
+3.9972747 ,   55.044254,
+4.1510491 ,   68.557068,
+4.3093431 ,   83.363928,
+4.4709532 ,  104.748336,
+4.6328518 ,  127.738549,
+4.7909148 ,  145.132212,
+4.9529966 ,  183.702869,
+5.1177288 ,  226.670256,
+5.2795822 ,  277.571413,
+5.4389206 ,  339.290293,
+5.6017597 ,  387.109394,
+5.7791409 ,  550.898651,
+5.9753123 ,  849.800103,
+6.2182958 , 1126.856340,
+6.5159188 , 1812.932056,
+6.9818574 , 4645.247199,
+7.9740574 ,27974.882980
+),2,30))
+
+.rHVDMplattforms[[2]]<-affyge
+rm(affyge)

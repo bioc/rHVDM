@@ -143,9 +143,8 @@ anothereset<-assayDataElementReplace(fiveGyMAS5,'se.exprs',5 + exprs(fiveGyMAS5)
 @
 This supposes the noise to be 10 percent of the signal intensity, plus an additive component. Recall that this is a ``quick and dirty" method. 
 
-From version 1.5 onwards, rHVDM implements, with some minor modifications, the method described in the Genome Biology paper~\cite{HVDM,err1,err2,err3}. The first command loads plattform specific data
+From version 1.5 onwards, rHVDM implements, with some minor modifications, the method described in the Genome Biology paper~\cite{HVDM,err1,err2,err3}.
 <<calculateerrors>>=
-data(plattforms)
 anothereset<-estimerrors(eset=fiveGyMAS5,plattid="affy_HGU133A")
 @
 The \Robject{plattid} parameter gives the plattform. To check what plattforms are available, type the \Robject{estimerrors} command with no arguments.
@@ -496,6 +495,11 @@ Note that this set of command will also work if no transform was used during the
 \paragraph{versions 1.9.4}
 \begin{itemize}
 \item{Introduction of new commands and data to accomodate a nonlinear formulation. Individual vignettes are written. A full documentation will be done in susequent version.)}
+\end{itemize}
+
+\paragraph{versions 1.9.5}
+\begin{itemize}
+\item{Changed the way the plattform-specific parameters are stored within the package.}
 \end{itemize}
 
 \paragraph{Future updates}

@@ -39,7 +39,6 @@ of p53 targets using Hidden Variable Dynamic Modelling. \emph{Genome Biology}, \
 
 \examples{
 data(HVDMexample)
-data(plattforms)
 fiveGybis<-estimerrors(eset=fiveGyMAS5,plattid="affy_HGU133A",refchips=leastnoisychips)
 #leastnoisy chips is a list of three chips identifiers stored in the HVDMexample data bundle
 }
