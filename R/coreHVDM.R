@@ -38,6 +38,7 @@
 		x<-HVDM$par$parameters[degaddress]
 		HVDM$par$parameters[degaddress]<-min(max(x,1e-10),1e+10)
 		gpar<-HVDM$par$parameters[gparnames]
+		#print(gpar)
 		for(i in 1:ntc){
 			tc<-HVDM$tc[[i]]
 			exprep<-paste(tc$experiment,tc$replicate,sep=".")
@@ -71,8 +72,14 @@
 
 
 .prodhill.patch<-function(trfconc,gpar){
+	#this patch is added to deal with the cases where the activator is negative (it is set to zero where the input is negative)
+	#if the exponent is equal to -1, then no change
+	if (gpar[4]>1.0){
+		trfconc[trfconc<0]<-0
+	}
 	#this patch had to be added to deal with the cases where infinity is met in the production term when computing the hill function
 	fn<-trfconc^gpar[4]
+	#print(fn)
 	infp<-is.infinite(fn)
 	kn<-gpar[3]^gpar[4]*trfconc^0
 	infk<-is.infinite(kn)
