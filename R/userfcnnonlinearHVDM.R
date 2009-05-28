@@ -60,7 +60,7 @@ screening.nl<-function(eset,genes,HVDM,transforms=c("exp"="Dj","exp"="Bj",exp="K
 		reslis<-HVDM$results
 		HVDM<-HVDM$tHVDM
 	}
-	class1<-((reslis$Vj_z_score>=cl1zscorelow) & (reslis$model_score<=cl1modelscorehigh) & (reslis$degradation>=cl1degraterange[1]) & (reslis$degradation<=cl1degraterange[2]))
+	class1<-((reslis$Vj_z_score>=cl1zscorelow) & (reslis$model_score<=cl1modelscorehigh) & (reslis$Dj>=cl1degraterange[1]) & (reslis$Dj<=cl1degraterange[2]))
 	reslis$class1<-class1
 	ordered<-order(-reslis$Vj_z_score)
 	results<-reslis[ordered,]
