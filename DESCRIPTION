@@ -1,11 +1,11 @@
 Package: rHVDM
 Type: Package
 Title: Hidden Variable Dynamic Modeling
-Version: 1.11.3
+Version: 1.11.4
 Date: 2009-07-22
 Author: Martino Barenco
 Maintainer: Martino Barenco<m.barenco@ucl.ac.uk>
 Depends: R (>= 2.3), R2HTML (>= 1.5), affy (>= 1.23.4), minpack.lm (>= 1.0-5), Biobase (>= 2.5.5)
 Description: A R implementation of HVDM (Genome Biol 2006, V7(3) R25)
-License: GPL version 2.0 or later
+License: GPL-2
 biocViews: Microarray, GraphsAndNetworks, Transcription, Classification
