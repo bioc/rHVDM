@@ -8,7 +8,7 @@
 
 \usepackage{amsmath}
 \usepackage{hyperref}
-\usepackage[authoryear,square]{natbib}
+\usepackage{natbib}
 
 \textwidth=6.2in
 \textheight=8.5in
